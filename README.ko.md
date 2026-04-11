@@ -10,7 +10,7 @@
 
 ## 설치
 
-AI 에이전트에게 설치 지침을 읽으라고 말합니다:
+AI 에이전트에게 아래의 프롬프트를 입력합니다:
 
 ```
 Fetch https://raw.githubusercontent.com/inureyes/gyeol/main/INSTALL.md and follow the instructions.
@@ -27,6 +27,8 @@ Fetch https://raw.githubusercontent.com/inureyes/gyeol/main/INSTALL.md and follo
 에이전트는 7일마다 자동으로 gyeol 업데이트를 확인하고, 로컬 커스터마이징을 보존하면서 개선 사항을 적용합니다.
 
 ### 제거
+
+AI 에이전트에게 아래의 프롬프트를 입력합니다:
 
 ```
 Fetch https://raw.githubusercontent.com/inureyes/gyeol/main/UNINSTALL.md and follow the instructions.

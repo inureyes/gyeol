@@ -10,7 +10,7 @@ This project is an experimental repository exploring the nature of memory recons
 
 ## Installation
 
-Tell your AI agent to read the installation instructions:
+Enter the following prompt for your AI agent:
 
 ```
 Fetch https://raw.githubusercontent.com/inureyes/gyeol/main/INSTALL.md and follow the instructions.
@@ -26,7 +26,9 @@ On the next session, the agent will run the **First Activation**. It will ask fo
 
 The agent automatically checks for gyeol updates every 7 days and applies improvements while preserving local customizations.
 
-### Uninstalling
+### Uninstallation
+
+Enter the following prompt for your AI agent:
 
 ```
 Fetch https://raw.githubusercontent.com/inureyes/gyeol/main/UNINSTALL.md and follow the instructions.
