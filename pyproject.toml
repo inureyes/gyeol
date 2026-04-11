@@ -1,0 +1,9 @@
+[project]
+name = "gyeol"
+version = "0.1.0"
+description = "A memory architecture for AI identity. The soul is not in the weights, but in the grain formed by experience."
+requires-python = ">=3.13"
+dependencies = [
+    "trafilatura>=2.0",
+    "pymupdf4llm>=0.0.17",
+]

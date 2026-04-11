@@ -1,0 +1,10 @@
+# Personal memory — identity and accumulated knowledge
+.memory/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# uv
+uv.lock
