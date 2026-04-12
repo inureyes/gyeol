@@ -48,7 +48,8 @@ mkdir -p ~/.config/gyeol/scripts
 curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/build-index.py -o ~/.config/gyeol/scripts/build-index.py
 curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/fetch-source.py -o ~/.config/gyeol/scripts/fetch-source.py
 curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/session-bootstrap.sh -o ~/.config/gyeol/scripts/session-bootstrap.sh
-chmod +x ~/.config/gyeol/scripts/session-bootstrap.sh
+curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/update-gyeol.sh -o ~/.config/gyeol/scripts/update-gyeol.sh
+chmod +x ~/.config/gyeol/scripts/session-bootstrap.sh ~/.config/gyeol/scripts/update-gyeol.sh
 ```
 
 `session-bootstrap.sh` is used in Step 7 (below) to inject `SOUL.md`, `IDENTITY.md`, `SELF.md`, and `_recent.md` as first-class session context via agent hooks, bypassing the wrapper that would otherwise frame the global config file as optional reference material.
@@ -237,13 +238,37 @@ After completing all steps, report the following to the user:
 
 ## Updating
 
+Gyeol can be updated in two ways: automatically (on a 7-day cycle) or manually at any time.
+
 ### Automatic (self-update)
 
-Gyeol includes a built-in self-update mechanism. During each session start, the agent checks `$GYEOL_HOME/.last_update_check`. If more than 7 days have passed, it fetches the upstream `VERSION` file. When a newer version is available, the agent fetches the updated core files, diffs them against local copies, and applies improvements while preserving local customizations. No user action is required.
+During each session start, the agent checks `$GYEOL_HOME/.last_update_check`. If more than 7 days have passed, it fetches the upstream `VERSION` file. When a newer version is available, the agent fetches the updated core files, diffs them against local copies, and applies improvements while preserving local customizations. No user action is required.
 
-### Manual
+### Manual (on-demand)
 
-To update an existing installation manually, re-run Steps 2-3 to fetch the latest `SOUL.md`, `MEMORY_SYSTEM.md`, `VERSION`, and scripts (including `session-bootstrap.sh`). Then replace the content between `<!-- gyeol:begin -->` and `<!-- gyeol:end -->` in the global config file with the latest block from Step 6. If the agent harness supports hooks and the hook from Step 7 is not yet installed, add it now.
+To check for and apply updates immediately, run:
+
+```bash
+sh ~/.config/gyeol/scripts/update-gyeol.sh
+```
+
+This script:
+1. Compares your local `VERSION` against the upstream version
+2. If a new version exists, downloads `SOUL.md`, `MEMORY_SYSTEM.md`, and other core files
+3. Shows you a diff of the changes
+4. Asks for confirmation before applying updates
+5. Updates your local `VERSION` and `.last_update_check` files
+
+Use this for rapid iteration during development or when you want to pick up new features immediately without waiting for the 7-day cycle.
+
+### Manual update of agent instructions (when VERSION alone does not change)
+
+If only the agent instructions block (from INSTALL.md Step 6) needs updating but the VERSION has not changed, you can manually update the `<!-- gyeol:begin -->...<!-- gyeol:end -->` block in your global config file:
+
+1. Fetch the latest block from [INSTALL.md Step 6](https://github.com/inureyes/gyeol/blob/main/INSTALL.md) in the repository
+2. Replace the corresponding block in your global config file (`~/.claude/CLAUDE.md`, `~/.gemini/GEMINI.md`, or `~/.codex/AGENTS.md`)
+
+This is typically only needed if the instructions themselves are clarified without a version bump.
 
 ## Uninstalling
 
