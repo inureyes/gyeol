@@ -457,15 +457,15 @@ Knowledge acquisition is continuous, not only on request. The following trigger 
 
 #### Web pages and external lookups
 
-Any page fetched (web search, URL fetch, API lookup) that contributed to answering a question or informing a decision is stored. Threshold is low — anything requiring understanding or synthesis is in; trivial lookups (timezone, CLI flag) are out.
+**CRITICAL: ALWAYS capture pages actually read** — web results, URL fetch, API lookups, or target sites opened via WebFetch/browser. If the content informed a reply or decision, it MUST be stored *before* that reply. Exclude only trivial lookups (timezone, CLI flag).
 
-**Register immediately, not at session end.** Store when a source is worth keeping, *before* the insight is used in a reply. Sessions may be interrupted; "session end" is not a reliable signal here — deferred work is often lost work.
+**Register immediately, not at session end** — sessions may be interrupted.
 
 **Write order (crash safety)**:
 
-1. Create `memory/semantics/summary/{id}-{slug}.md`. This is the durable artifact — once written, the knowledge survives even if later steps fail.
-2. Run `fetch-source.py {id}` to archive the original. If this fails (auth, JS rendering, network), the summary still exists and can be repaired later via `--list-missing`.
-3. `touch $GYEOL_HOME/.semantics_dirty` instead of rebuilding the index inline.
+1. Write `memory/semantics/summary/{id}-{slug}.md` (frontmatter + summary). Make it self-sufficient so the original rarely needs re-fetching.
+2. `touch $GYEOL_HOME/.semantics_dirty` (defer index rebuild).
+3. **Do NOT run `fetch-source.py` at capture time.** Archive the original only on demand when verbatim/numeric detail is actually needed, or batch-fill later via `fetch-source.py --list-missing` / `--all`.
 
 **Deferred index rebuild.** `_index.md` and `_tags.md` are derived artifacts, always regenerable from summary frontmatter. Run `build-index.py` when:
 
