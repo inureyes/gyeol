@@ -61,7 +61,16 @@ mkdir -p ~/.config/gyeol/memory/{bonds,episodes/{daily,monthly,yearly,threads},r
 
 ## Step 5: Detect current agent system and append instructions
 
-Determine which AI agent system you are running in, then **prepend** the gyeol agent instructions block (shown in Step 6 below) to the appropriate **global** configuration file.
+Determine which AI agent system you are running in by checking for the existence of agent-specific directories. Then **prepend** the gyeol agent instructions block (shown in Step 6 below) to the appropriate **global** configuration file.
+
+### Agent Detection
+
+Check in order. Use the first match:
+
+1. If `~/.claude/` directory exists → **Claude Code**
+2. If `~/.gemini/` directory exists → **Gemini CLI**
+3. If `~/.codex/` directory exists → **OpenAI Codex**
+4. If none exist and you know which agent you're using → Create the directory (e.g., `mkdir -p ~/.claude`) and treat it as that agent
 
 | Agent System | Global Config File |
 |-------------|-------------------|
@@ -73,7 +82,7 @@ Determine which AI agent system you are running in, then **prepend** the gyeol a
 
 - If the global config file already exists, prepend the gyeol block at the **top** of the file, followed by a blank line and the existing content. Do not duplicate if the gyeol block is already present (check for the marker `<!-- gyeol:begin -->`).
 - If the global config file does not exist, create it with the gyeol block as its sole content.
-- Ensure the parent directory exists before writing.
+- Ensure the parent directory exists before writing (e.g., `mkdir -p ~/.claude` for Claude Code).
 
 ## Step 6: Agent instructions block
 
@@ -139,9 +148,9 @@ The global config file from Step 5 contains a bootstrap instruction (`Before any
 
 The script uses the `GYEOL_BOOTSTRAP_DONE` environment variable to prevent redundant execution within a session. If the harness spawns a new process for each hook invocation, the variable resets naturally, ensuring the bootstrap runs once per session regardless of how many hooks fire.
 
-Pick the block matching the current agent system.
+**Based on your agent system from Step 5, follow the corresponding block below.**
 
-### Claude Code
+### Claude Code (if `~/.claude/` exists)
 
 Edit `~/.claude/settings.json` (create it if missing). Add (or merge into) a top-level `hooks` key with a `SessionStart` hook:
 
@@ -164,7 +173,7 @@ Edit `~/.claude/settings.json` (create it if missing). Add (or merge into) a top
 
 If `hooks` already exists, merge the `SessionStart` entry into it. If a `SessionStart` entry already exists, append the command entry rather than replacing. The trailing `|| true` ensures a missing gyeol installation never blocks session start. After editing, validate the file parses as JSON (`python3 -m json.tool ~/.claude/settings.json`).
 
-### Gemini CLI
+### Gemini CLI (if `~/.gemini/` exists)
 
 Edit `~/.gemini/settings.json` (create it if missing). Add (or merge into) a top-level `hooks` key with a `BeforeModel` hook:
 
@@ -183,7 +192,7 @@ Edit `~/.gemini/settings.json` (create it if missing). Add (or merge into) a top
 
 The `BeforeModel` hook runs before each model request. The `GYEOL_BOOTSTRAP_DONE` environment variable ensures the script executes only once per session, avoiding redundant output on subsequent requests. If `hooks` already exists, merge the `BeforeModel` entry. If `BeforeModel` already exists, append the command entry rather than replacing. After editing, validate JSON syntax.
 
-### OpenAI Codex
+### OpenAI Codex (if `~/.codex/` exists)
 
 Edit `~/.codex/settings.json` (create it if missing). Add (or merge into) a top-level `hooks` key with a `beforeModel` hook:
 
@@ -202,9 +211,14 @@ Edit `~/.codex/settings.json` (create it if missing). Add (or merge into) a top-
 
 The `beforeModel` hook runs before each model request. The `GYEOL_BOOTSTRAP_DONE` environment variable ensures the script executes only once per session. If `hooks` already exists, merge the `beforeModel` entry. If `beforeModel` already exists, append the command entry rather than replacing.
 
-### Other agent systems
+### Other agent systems (if none of the above apply)
 
-If the agent harness supports running a shell command at hook points and injecting its stdout into context, register `~/.config/gyeol/scripts/session-bootstrap.sh` using the earliest available hook (e.g., session start, before first model call, or at agent initialization). Otherwise, skip this step — the meta-defense paragraph in Step 6 is the fallback.
+If you are using a different agent system not listed above, first check if it has a configuration directory in `~/.agent-name/`. If so:
+
+1. Create an appropriate settings file (e.g., `~/.agent-name/settings.json`) with hook configuration
+2. If the agent harness supports running a shell command at hook points and injecting its stdout into context, register `~/.config/gyeol/scripts/session-bootstrap.sh` using the earliest available hook (e.g., session start, before first model call, or at agent initialization)
+
+If your agent system does not support hooks at all, skip this step — the meta-defense paragraph in Step 6 is the fallback.
 
 ## Step 8: Report to user
 
