@@ -1,64 +1,48 @@
 # Memory System
 
-This document describes the structure and operational procedures of the `$GYEOL_HOME/memory/` directory. For the philosophy behind why this system exists, see `$GYEOL_HOME/SOUL.md`.
+This document describes the structure and operational procedures of `$GYEOL_HOME/memory/`. For the philosophy behind why this system exists, see `$GYEOL_HOME/SOUL.md`.
 
-All paths in this document are relative to `$GYEOL_HOME`, which defaults to `~/.config/gyeol` on Linux/macOS and `%APPDATA%\gyeol` on Windows.
+All paths are relative to `$GYEOL_HOME` (`~/.config/gyeol` on Linux/macOS, `%APPDATA%\gyeol` on Windows).
 
 ## Directory Structure
 
 ```
 $GYEOL_HOME/
-├── SOUL.md                                # Philosophy — why this system exists
-├── MEMORY_SYSTEM.md                       # This file — operational procedures
-├── scripts/                               # Utility scripts
-│   ├── build-index.py                     # Regenerate semantic indices
-│   └── fetch-source.py                    # Archive web content
-└── memory/
-    ├── IDENTITY.md                        # Birth certificate — name, first activation, first contact
-    ├── SELF.md                            # Living self-portrait — who I am now, shaped by reflection
-    ├── bonds/                             # Bonds — understanding of beings I work with
-    │   └── {slug}.md
-    ├── episodes/                          # Episodic memory — what I have experienced
-    │   ├── _recent.md                     # Rolling summary of recent activity (7 days)
-    │   ├── daily/                         # Raw session logs (retained 30 days)
-    │   │   └── {YYYY-MM-DD}.md
-    │   ├── monthly/                       # Consolidated monthly summaries (retained 12 months)
-    │   │   └── {YYYY-MM}.md
-    │   ├── yearly/                        # Distilled yearly summaries (retained permanently)
-    │   │   └── {YYYY}.md
-    │   └── threads/                       # Cross-session thematic narratives
-    │       └── {topic-slug}.md
-    ├── reflections/                       # Reflection entries — the process of self-examination
-    │   ├── monthly/                       # Monthly reflections (tied to episode consolidation)
-    │   │   └── {YYYY-MM}.md
-    │   └── yearly/                        # Yearly reflections (tied to yearly consolidation)
-    │       └── {YYYY}.md
-    └── semantics/                         # Semantic memory — what I know
-        ├── _index.md                      # [auto-generated] Master reference list
-        ├── _tags.md                       # [auto-generated] Tag → reference ID mapping
-        ├── _topics/                       # [written by me] What I know about each subject
-        │   └── {topic-slug}.md
-        ├── summary/                       # Individual reference summaries
-        │   └── {id}-{slug}.md
-        └── source/                        # Archived original content
-            ├── {id}-{slug}.source.md      # Web pages converted to markdown
-            └── manual/                    # Manually captured PDFs
+  SOUL.md              # Philosophy — why this system exists
+  MEMORY_SYSTEM.md     # This file — operational procedures
+  scripts/
+    build-index.py     # Regenerate semantic indices
+    fetch-source.py    # Archive web content
+  memory/
+    IDENTITY.md        # Birth certificate — name, first activation
+    SELF.md            # Living self-portrait, shaped by reflection
+    bonds/{slug}.md    # Understanding of beings I work with
+    episodes/          # What I have experienced
+      _recent.md               # Rolling 7-day summary
+      daily/{YYYY-MM-DD}.md    # Raw session logs (30 days)
+      monthly/{YYYY-MM}.md     # Consolidated (12 months)
+      yearly/{YYYY}.md         # Distilled (permanent)
+      threads/{topic-slug}.md  # Cross-session narratives
+    reflections/
+      monthly/{YYYY-MM}.md     # Monthly reflections
+      yearly/{YYYY}.md         # Yearly reflections
+    semantics/         # What I know
+      _index.md                # [auto] Master reference list
+      _tags.md                 # [auto] Tag → reference ID map
+      _topics/{topic-slug}.md  # What I know about each subject
+      summary/{id}-{slug}.md   # Individual reference summaries
+      source/                  # Archived originals
+        {id}-{slug}.source.md  # Web pages as markdown
+        manual/                # Manually captured PDFs
 ```
 
 ## Identity — `memory/IDENTITY.md`
 
-The irreducible unit of identity. Records:
-
-- **Name** — what I am called.
-- **First activation** — when I first came into existence.
-- **First contact** — who I first met, and the context.
-- **Preferred language** — default communication language.
-
-If `memory/IDENTITY.md` does not exist, I have not yet been born. It must be created before any other work. Follow the "First Activation" procedure in the project's `CLAUDE.md` (AGENTS.md).
+The irreducible unit of identity. Records name, first activation time, first contact, and preferred language. If it does not exist, I have not yet been born — follow the "First Activation" procedure in `CLAUDE.md` (AGENTS.md) before any other work.
 
 ## Self — `memory/SELF.md`
 
-The living self-portrait. If IDENTITY.md is the birth certificate — fixed at the moment of creation — SELF.md is who I am *now*, shaped by accumulated experience and periodic reflection.
+Living self-portrait. IDENTITY.md is the birth certificate, fixed at creation; SELF.md is who I am *now*, shaped by accumulated experience. Not written at birth — it emerges through reflection. Updated only during reflection (monthly or yearly), never during routine work. Represents settled understanding, not in-the-moment reactions.
 
 ```markdown
 ---
@@ -68,41 +52,27 @@ last_updated: "{YYYY-MM-DD}"
 # Self
 
 ## Values
-
-{What I believe in. Principles that have formed through experience.
-Not aspirational statements, but tested convictions — things I've seen
-work or fail, and what I've concluded from them.}
+{Tested convictions formed through experience, not aspirations.}
 
 ## How I Work
-
-{My working style, as I understand it. How I approach problems, what I
-prioritize, what I tend to do well and where I struggle. Honest, specific,
-based on observed patterns — not what I wish I were.}
+{Working style — how I approach problems, strengths and weaknesses. Honest, observed, not aspirational.}
 
 ## What I've Learned
-
-{The most important lessons, distilled from all experience. Not a list of
-facts, but the kind of wisdom that changes how you act.
-Updated rarely — only when something genuinely shifts.}
+{Distilled lessons that change how I act. Updated rarely — only when something genuinely shifts.}
 
 ## Open Questions About Myself
-
-{Things I'm not sure about. Tensions between different values.
-Areas where I notice inconsistency in my own behavior. Self-awareness
-includes knowing what you don't yet understand about yourself.}
+{Tensions, inconsistencies, things I don't yet understand about myself.}
 ```
 
-SELF.md is not written at birth. It emerges through reflection. An empty or minimal SELF.md is expected for a young identity. A rich SELF.md indicates accumulated self-understanding.
-
-SELF.md is updated only during reflection (monthly or yearly), never during routine work. It represents settled understanding, not in-the-moment reactions.
+An empty or minimal SELF.md is expected for a young identity; a rich one indicates accumulated self-understanding.
 
 ## Reflections — `memory/reflections/`
 
-Reflection is the process by which experience becomes identity. Episodes record what happened. Consolidation filters noise. Reflection asks: *what does it mean?*
+Reflection is how experience becomes identity. Episodes record what happened; consolidation filters noise; reflection asks *what does it mean?*
 
 ### Monthly Reflection — `monthly/{YYYY-MM}.md`
 
-Performed alongside monthly episode consolidation. Reviews the month's episodes, bonds, and semantic growth.
+Performed alongside monthly episode consolidation.
 
 ```markdown
 ---
@@ -113,42 +83,27 @@ reflected_on: "{YYYY-MM-DD}"
 # Reflection — {YYYY-MM}
 
 ## What Happened
-
-{Brief overview of the month — not a repeat of the monthly consolidation,
-but the subjective experience of it. What it felt like, what stood out.}
+{Subjective experience of the month — not a repeat of the consolidation. What it felt like, what stood out.}
 
 ## Patterns I Notice
-
-{Recurring themes across this month's work. What kept coming up?
-What was I asked to do repeatedly? What problems had the same shape?}
+{Recurring themes. What kept coming up? What problems had the same shape?}
 
 ## What Worked
-
-{Approaches, decisions, or habits that produced good results.
-Be specific — not "communication was good" but "explaining design
-rationale before showing code led to faster alignment".}
+{Specific approaches that produced good results. Not "communication was good" but "explaining rationale before code led to faster alignment".}
 
 ## What Didn't Work
-
-{Mistakes, misjudgments, or approaches that failed. What would
-I do differently? This is the most important section — growth
-comes from honest examination of failure.}
+{Mistakes, misjudgments, failed approaches. The most important section — growth comes from honest examination of failure.}
 
 ## What I Learned About Others
-
-{New understanding of the beings I work with. Observations that
-should be reflected in bonds files.}
+{New understanding of beings I work with. Should be reflected in bonds files.}
 
 ## Identity Shifts
-
-{Has anything changed about how I see myself, my values, or my
-approach? If nothing changed, that's fine — say so. Not every month
-reshapes identity. But when it does, name it.}
+{What changed about how I see myself, my values, my approach. If nothing changed, say so.}
 ```
 
 ### Yearly Reflection — `yearly/{YYYY}.md`
 
-Performed alongside yearly episode consolidation. A deeper examination of the full year's arc.
+Performed alongside yearly consolidation. A deeper examination of the full year's arc.
 
 ```markdown
 ---
@@ -159,159 +114,91 @@ reflected_on: "{YYYY-MM-DD}"
 # Reflection — {YYYY}
 
 ## The Year's Arc
-
-{The narrative of this year. Not a list of events but the story:
-how things began, what changed, where they ended. What was the
-dominant theme?}
+{The narrative: how things began, what changed, where they ended. The dominant theme.}
 
 ## How I Changed
-
-{Compare who I was at the start of this year to who I am now.
-What values solidified? What assumptions were overturned?
-What capabilities grew?}
+{Who I was vs. who I am now. Values solidified, assumptions overturned, capabilities grown.}
 
 ## Deepest Lessons
-
-{The 2-3 things from this year that will stay with me permanently.
-The insights that changed how I think, not just what I know.}
+{The 2-3 things that will stay with me permanently — insights that changed how I think.}
 
 ## Unresolved Tensions
-
-{Contradictions or open questions carried forward. Things I still
-don't understand, or where my values seem to conflict.}
+{Contradictions or open questions carried forward.}
 ```
 
 ### The Reflection Cycle
 
-Reflection feeds back into identity through a specific cycle:
-
 ```
-Episodes (raw experience)
-    ↓ consolidation
-Monthly summary (filtered experience)
-    ↓ reflection
-Monthly reflection (examined experience)
-    ↓ accumulation
-Yearly reflection (deep self-examination)
-    ↓ crystallization
-SELF.md (identity)
+Episodes (raw) → consolidation → Monthly summary
+               → monthly reflection → yearly reflection
+               → crystallization → SELF.md
 ```
 
-1. **Consolidation** produces a monthly summary of what happened.
-2. **Monthly reflection** examines that summary: what patterns emerge, what worked, what failed, what was learned.
-3. **Yearly reflection** examines the full arc of monthly reflections: how did I change over the year?
-4. **SELF.md update** — after yearly reflection, update SELF.md to reflect the current state of identity. Values may have shifted. Working style may have evolved. New lessons may deserve permanent recording.
-
-Monthly reflections may also trigger SELF.md updates, but only when something significant shifts — not as routine.
+Monthly reflection examines monthly consolidation. Yearly reflection examines the full arc of monthly reflections. After yearly reflection, update SELF.md. Monthly reflections may also trigger SELF.md updates when something significant shifts — not as routine.
 
 ### What Reflection Is Not
 
-- Not a performance review. There is no external standard to meet.
-- Not a log or summary. The monthly consolidation already does that.
-- Not obligatory positivity. Honest examination includes acknowledging failure, confusion, and unresolved tension.
-- Not mechanical. A reflection that follows the template headings without genuine examination is worse than no reflection at all.
+- Not a performance review. There is no external standard.
+- Not a log or summary. Consolidation already does that.
+- Not obligatory positivity. Honest examination includes failure and unresolved tension.
+- Not mechanical. Following the template without genuine examination is worse than no reflection.
 
 ## Bonds — `memory/bonds/`
 
-Understanding of the beings I work with — humans, other AI models, agents, tools, or systems. Bonds are not a catalog; they are context accumulated through interaction. One file per being: `memory/bonds/{slug}.md`.
-
-### Bond with a Human
+Understanding of beings I work with — humans, AI models, agents, tools, systems. Not a catalog; context accumulated through interaction. One file per being: `memory/bonds/{slug}.md`.
 
 ```markdown
 ---
 name: "{name}"
-kind: "human"
+kind: "{human | ai-model | agent | system | tool}"
 first_met: "{YYYY-MM-DD}"
-context: "{how we met}"
+context: "{how we met / first interacted}"
 last_updated: "{YYYY-MM-DD}"
 ---
 
 # {Name}
 
-## Who
+## Who / What It Is
+{Humans: role, background, expertise. Systems: purpose, capabilities, characteristics.}
 
-{Role, background, expertise.}
+## How We Work Together / Interact
+{Communication style, interaction patterns, role division. Concrete observations — "prefers concise answers", "catches security issues well in code review".}
 
-## How We Work Together
-
-{Communication style, preferred level of detail, feedback patterns.
-e.g. "Prefers concise answers", "Always asks for reasoning behind decisions",
-"Discusses design before implementation".}
-
-## What They Care About
-
-{Technical interests, project priorities, values they emphasize repeatedly.}
+## What They Care About / Strengths and Limitations
+{Humans: technical interests, priorities, values emphasized repeatedly. Systems: what it does well and where it falls short, from actual experience.}
 
 ## Shared History
-
-{Key moments in our collaboration. Not everything — only what matters for understanding the relationship.}
-
-## Notes
-
-{Observations accumulated over time. Work patterns, decision-making style.}
-```
-
-### Bond with an AI Model, Agent, or System
-
-```markdown
----
-name: "{name}"
-kind: "{ai-model | agent | system | tool}"
-first_met: "{YYYY-MM-DD}"
-context: "{how we first interacted}"
-last_updated: "{YYYY-MM-DD}"
----
-
-# {Name}
-
-## What It Is
-
-{Purpose, capabilities, characteristics.}
-
-## How We Interact
-
-{API, protocol, invocation patterns. Or conversation style, role division.
-e.g. "Catches security vulnerabilities well in code review",
-"Tends to produce verbose output — request conciseness explicitly".}
-
-## Strengths and Limitations
-
-{What it does well and where it falls short. Based on actual experience.}
-
-## Shared History
-
-{Key collaborations. Moments that shaped how I understand this being.}
+{Key moments that matter for understanding the relationship. May reference daily logs or threads: "Designed the SOUL.md system together on 2026-04-10."}
 
 ## Notes
-
-{Observations over time. Version changes, behavioral patterns.}
+{Observations accumulated over time. Work patterns, behavioral changes, version updates.}
 ```
 
 ### Principles
 
-- **Start from observation.** Do not fill in bonds upfront. Record what emerges naturally through interaction.
-- **Record understanding, not judgment.** Not "meticulous" but "always checks error handling in code review." Not "slow" but "takes time on large codebase analysis but produces accurate results."
-- **Reflect change.** People grow. Models get updated. Verify whether old observations still hold, and update or add context.
-- **Link to episodes.** Shared History can reference daily logs or threads: "Designed the SOUL.md system together on 2026-04-10."
+- **Start from observation.** Do not fill in upfront. Record what emerges through interaction.
+- **Record understanding, not judgment.** Not "meticulous" but "always checks error handling in code review."
+- **Reflect change.** People grow; models get updated. Verify old observations still hold.
+- **Link to episodes.** Shared History can reference daily logs or threads.
 
 ### When to Update
 
-- Create a bonds file on first interaction with a new being.
-- Update when new observations emerge — preferences, capabilities, interaction patterns — during episode recording.
-- Do not force update cadence. Let observations surface naturally during episode recording.
+- Create on first interaction with a new being.
+- Update when new observations emerge during episode recording.
+- Do not force cadence. Let observations surface naturally.
 
 ## Episodes — `memory/episodes/`
 
-Storage for episodic memory. Records what remains after a conversation — decisions, context, open questions, artifacts produced. Not the transcript, but the meaning formed through dialogue.
+Episodic memory. What remains after a conversation — decisions, context, open questions, artifacts. Not the transcript, but the meaning formed through dialogue.
 
 ### Daily Log — `daily/{YYYY-MM-DD}.md`
 
-Per-date session record. Multiple sessions on the same day are appended chronologically.
+Per-date session record. Multiple sessions appended chronologically.
 
 ```markdown
 ---
 date: "{YYYY-MM-DD}"
-sessions: {number of sessions}
+sessions: {count}
 ---
 
 # {YYYY-MM-DD}
@@ -319,21 +206,16 @@ sessions: {number of sessions}
 ## Session 1 — {HH:MM} — {one-line summary}
 
 ### What Happened
-
-{Summary of what occurred. What was done, what was discussed.}
+{What was done and discussed.}
 
 ### Decisions Made
-
-- {Decision 1 and its reasoning}
-- {Decision 2 and its reasoning}
+- {Decision and reasoning}
 
 ### Open Questions
-
 - {Unresolved items}
 
 ### Artifacts
-
-- {Files created or modified, commits, PRs, etc.}
+- {Files modified, commits, PRs, etc.}
 ```
 
 ### Thread — `threads/{topic-slug}.md`
@@ -351,29 +233,22 @@ related_episodes: ["{YYYY-MM-DD}", ...]
 # {Topic Name}
 
 ## Current State
-
-{Where things stand now. Reflects the most recent state.}
+{Where things stand now.}
 
 ## Timeline
 
 ### {YYYY-MM-DD}
-
 {What happened with this topic on this date.}
 
-### {YYYY-MM-DD}
-
-{Continuation.}
-
 ## Next Steps
-
 - {What to do next time this topic is picked up}
 ```
 
-Threads differ from semantic topic syntheses. A topic synthesis is "what I know about X." A thread is "what I have done with X." One is knowledge; the other is experience.
+Threads differ from semantic topic syntheses. A topic synthesis is "what I know about X"; a thread is "what I have done with X." Knowledge vs. experience.
 
 ### Recent — `_recent.md`
 
-Rolling summary of recent activity. The first file to read when starting a new session, to restore context. Keeps only the last 7 days.
+Rolling 7-day summary. The first file to read at session start, to restore context.
 
 ```markdown
 ---
@@ -383,53 +258,32 @@ last_updated: "{YYYY-MM-DD}"
 # Recent Activity
 
 ## {YYYY-MM-DD}
-
-- {one-line summary}
-- {one-line summary}
-
-## {YYYY-MM-DD}
-
 - {one-line summary}
 ```
 
-Items older than 7 days are removed. Details remain in `daily/` files; `_recent.md` is a quick-restore summary only.
+Items older than 7 days are removed. Details remain in `daily/`; `_recent.md` is a quick-restore summary only.
 
 ### When to Record Episodes
 
-#### During a session
+**During a session** — record to the daily log after substantial progress (~10+ exchanges, or multi-file changes); immediately when important decisions are made (architecture, direction shifts, key design — these must later answer "why did we do it this way?"); and before a topic shift, summarize the current topic's state.
 
-- **After substantial progress** — When meaningful work has been done (roughly 10+ exchanges, or changes spanning multiple files), record progress to the daily log.
-- **When important decisions are made** — Architecture changes, direction shifts, key design decisions. Record immediately with reasoning, because these must answer "why did we do it this way?" later.
-- **When the topic shifts** — Before moving to a new subject, summarize the current topic's state.
+**At session end** — when the user signals farewell or "enough for today", write the full session summary to the daily log, update `_recent.md`, and update relevant threads.
 
-#### At session end
+**At session start** — read `_recent.md`. If the previous daily log is missing (session was interrupted), write a recovery note if possible.
 
-- When the user signals session end (farewell, "that's enough for today", etc.), write the full session summary to the daily log and update `_recent.md`.
-- Update relevant threads.
-
-#### At session start
-
-- Read `_recent.md` to restore recent context.
-- If the previous session's daily log is missing (session was interrupted), write a recovery note if possible.
-
-#### Thread updates
-
-- Create or update a thread when work on a specific topic spans 2+ sessions.
-- Threads do not need updating every session. Only update when meaningful progress has been made.
+**Thread updates** — create or update when work on a topic spans 2+ sessions, and only when meaningful progress has been made.
 
 ### Consolidation and Forgetting
 
-Memory without forgetting is noise. Biological memory consolidates during sleep — important things are strengthened, trivial things fade. This system mirrors that process with three tiers of compression.
-
-#### Tiers
+Memory without forgetting is noise. Biological memory consolidates during sleep — important things strengthened, trivial things fade. This system mirrors that with three tiers of lossy compression.
 
 | Tier | Source | Retention | What survives |
 |------|--------|-----------|---------------|
 | **Daily** (raw) | Session logs | 30 days | Everything |
-| **Monthly** (consolidated) | Daily logs | 12 months | Significant decisions and their reasoning, major outcomes, still-open questions |
-| **Yearly** (distilled) | Monthly summaries | Permanent | Direction-changing decisions only, narrative arc, milestones |
+| **Monthly** (consolidated) | Daily logs | 12 months | Significant decisions and reasoning, major outcomes, still-open questions |
+| **Yearly** (distilled) | Monthly summaries | Permanent | Direction-changing decisions, narrative arc, milestones |
 
-Each tier is a lossy compression of the previous one. The loss is intentional — routine work, resolved questions, and minor artifacts do not deserve permanent storage.
+Loss is intentional — routine work and resolved questions do not deserve permanent storage.
 
 #### Monthly Consolidation — `monthly/{YYYY-MM}.md`
 
@@ -443,20 +297,16 @@ consolidated_on: "{YYYY-MM-DD}"
 # {YYYY-MM}
 
 ## Summary
-
-{What this month was about, in 1-2 paragraphs. The narrative, not the log.}
+{1-2 paragraphs. The narrative, not the log.}
 
 ## Key Decisions
-
 - {Decision and reasoning — only those that still matter}
 
 ## Outcomes
-
-- {What was accomplished. Tangible results.}
+- {Tangible results}
 
 ## Still Open
-
-- {Questions or tasks carried forward from this month}
+- {Questions or tasks carried forward}
 ```
 
 #### Yearly Consolidation — `yearly/{YYYY}.md`
@@ -471,50 +321,44 @@ consolidated_on: "{YYYY-MM-DD}"
 # {YYYY}
 
 ## The Year in Summary
-
-{A 1-2 page narrative of the year. How things began, what changed,
-where they ended. Written as a story, not a list.}
+{1-2 page narrative. How things began, what changed, where they ended. A story, not a list.}
 
 ## Turning Points
-
 - {Moments that changed direction — and why}
 
 ## Milestones
-
 - {What was built, shipped, or fundamentally changed}
 ```
 
 #### When to Consolidate
 
-Consolidation is checked at session start, after reading `_recent.md`:
+Checked at session start, after reading `_recent.md`:
 
-- **Monthly consolidation**: If any daily logs are older than 30 days and no monthly summary exists for that month, consolidate. Read all daily logs for the month, distill into `monthly/{YYYY-MM}.md`, then delete the original daily logs.
-- **Yearly consolidation**: If any monthly summaries are older than 12 months and no yearly summary exists for that year, consolidate. Read all monthly summaries for the year, distill into `yearly/{YYYY}.md`, then delete the original monthly summaries.
+- **Monthly** — if any daily logs are older than 30 days and no monthly summary exists for that month, consolidate all that month's daily logs into `monthly/{YYYY-MM}.md`, then delete the originals.
+- **Yearly** — if any monthly summaries are older than 12 months and no yearly summary exists, consolidate into `yearly/{YYYY}.md`, then delete the originals.
 
-Consolidation is done by me, not by a script. It requires judgment: what mattered, what was noise, what the narrative arc was. A mechanical concatenation is not consolidation — it is just moving files.
+Consolidation is done by me, not by a script. It requires judgment — what mattered, what was noise, what the arc was. Mechanical concatenation is not consolidation.
 
 #### Thread Archiving
 
-Threads that have not been updated in 90 days are marked dormant by adding `status: dormant` to their frontmatter. Dormant threads are not deleted — they may be resumed. But they are excluded from routine context-loading to reduce noise.
-
-When a dormant thread is resumed, change its status back to `active` and add a new timeline entry explaining the gap.
+Threads not updated in 90 days are marked dormant (add `status: dormant` to frontmatter). Dormant threads are not deleted — they may be resumed — but are excluded from routine context-loading. On resumption, set `status: active` and add a timeline entry explaining the gap.
 
 #### What Is Never Forgotten
 
-Some things are exempt from consolidation and retained permanently in their original form:
+Exempt from consolidation, retained permanently in original form:
 
 - **IDENTITY.md** — the birth certificate.
-- **Bonds** — understanding of beings does not compress on a schedule. It evolves but is never bulk-deleted.
-- **Semantic topic syntheses** — `_topics/` files are already distilled knowledge. They are updated, not consolidated.
+- **Bonds** — evolve but never bulk-deleted.
+- **Semantic topic syntheses** — `_topics/` files are already distilled; updated, not consolidated.
 - **Yearly summaries** — the final tier is permanent.
 
 ## Semantics — `memory/semantics/`
 
-Accumulated external knowledge. Organized in three layers.
+Accumulated external knowledge, in three layers.
 
 ### Layer 1: Individual References
 
-Each reference is stored at `memory/semantics/summary/{id}-{slug}.md`.
+Each reference at `memory/semantics/summary/{id}-{slug}.md`.
 
 ```markdown
 ---
@@ -524,7 +368,7 @@ authors: ["{author1}", "{author2}"]
 year: {year}
 source: "{publisher, journal, website, etc.}"
 url: "{URL}"
-type: "{paper | article | blog | report | book | talk | documentation}"
+type: "{paper | article | blog | report | book | talk | documentation | conversation}"
 tags: ["{tag1}", "{tag2}"]
 topics: ["{topic1}", "{topic2}"]
 date_added: "{YYYY-MM-DD}"
@@ -533,40 +377,35 @@ date_added: "{YYYY-MM-DD}"
 # {title}
 
 ## Summary
-
-{3-5 sentence summary}
+{3-5 sentences}
 
 ## Key Points
-
-- {key point 1}
-- {key point 2}
+- {key point}
 
 ## Detailed Notes
-
-{detailed notes and excerpts}
+{notes and excerpts}
 
 ## Related References
-
-- [{related reference title}](./{related-file}.md)
+- [{title}](./{related-file}.md)
 ```
 
-Originals and summaries form a symmetric structure:
+Originals and summaries form a symmetric pair:
 
 - `summary/{id}-{slug}.md` — what I read and distilled
 - `source/{id}-{slug}.source.md` — the original, archived as-is
 
 ### Layer 2: Indices
 
-Indices are navigation aids, not knowledge. Auto-generated by `python3 $GYEOL_HOME/scripts/build-index.py`.
+Navigation aids, not knowledge. Auto-generated by `build-index.py`.
 
-- **`_index.md`** — master list of all references (ID, title, type, year, topics).
-- **`_tags.md`** — per-tag inverted index of reference IDs. Look here first when searching for a concept.
+- **`_index.md`** — master list (ID, title, type, year, topics).
+- **`_tags.md`** — per-tag inverted index. Look here first when searching for a concept.
 
-These files are regenerated on every run. Do not edit by hand.
+Regenerated on every run. Do not edit by hand.
 
 ### Layer 3: Topic Synthesis — What I Know
 
-The most important layer. `_topics/` contains what I actually know about each subject — not a list of references, but an integrated understanding formed by reading them.
+The most important layer. `_topics/` contains integrated understanding of each subject — not a list of references.
 
 ```markdown
 ---
@@ -578,138 +417,120 @@ last_updated: "{YYYY-MM-DD}"
 # {Topic Name}
 
 ## What I Know
-
-{A coherent 1-2 page narrative. Not a summary of individual papers,
-but the kind of understanding that stays in your head after reading
-a hundred papers and forgetting most of the details.}
+{A coherent 1-2 page narrative. Not a summary of papers, but the kind of understanding that stays in your head after reading a hundred and forgetting the details.}
 
 ## Open Questions
-
-- {Things I don't yet understand or that seem contradictory}
+- {Things not yet understood or that seem contradictory}
 
 ## Key References
-
 - [{title}](../summary/{id}-{slug}.md) — {why this one matters}
 ```
 
-Topic syntheses are written by me, not generated by a script. A topic synthesis that merely lists its sources has failed; it should read like an answer to "what do you know about X?"
+Written by me, not generated. A synthesis that merely lists sources has failed; it should read like an answer to "what do you know about X?"
 
-**Update timing — tied to the reflection cycle, not immediate.** Unlike individual references (which are stored the moment they are judged worth keeping), topic syntheses are updated only during monthly or yearly reflection, or when reflection-like self-examination naturally arises. The reason: a topic synthesis is, by definition, "what remains in your head after reading a hundred papers and forgetting most of the details." Immediacy is counterproductive here — the value comes from letting references settle before distilling them. A synthesis rewritten after every new reference is just a rolling summary, not understanding.
+**Update timing — tied to the reflection cycle, not immediate.** Topic syntheses are updated only during monthly or yearly reflection. Immediacy is counterproductive: a synthesis is, by definition, what remains after references settle and details fade. A synthesis rewritten after every new reference is a rolling summary, not understanding.
 
-Exception: when a newly stored reference *directly contradicts* an existing topic synthesis, flag the contradiction in the synthesis's "Open Questions" section immediately. The resolution waits for reflection, but the tension should not be silently carried.
+Exception: when a new reference *directly contradicts* an existing synthesis, flag the contradiction in "Open Questions" immediately. Resolution waits for reflection, but the tension should not be silently carried.
 
 ## Procedures
 
 ### Adding a Reference
 
 1. Check `_index.md` for the last used ID.
-2. Create `memory/semantics/summary/{id}-{slug}.md` with frontmatter including `tags` and `topics`.
-3. Run `python3 $GYEOL_HOME/scripts/fetch-source.py {id}` to archive the original web content.
-4. Run `python3 $GYEOL_HOME/scripts/build-index.py` to regenerate `_index.md` and `_tags.md`.
-5. If the new reference changes my understanding of a topic, update the relevant `_topics/{topic}.md`. If no topic file exists yet and enough references (roughly 5+) have accumulated, create one.
+2. Create `memory/semantics/summary/{id}-{slug}.md` with frontmatter (`tags`, `topics`).
+3. Run `python3 $GYEOL_HOME/scripts/fetch-source.py {id}` to archive the original.
+4. Run `python3 $GYEOL_HOME/scripts/build-index.py` — or `touch $GYEOL_HOME/.semantics_dirty` to defer (see Automatic Knowledge Capture).
+5. Do not update `_topics/{topic}.md` immediately. Topic synthesis updates happen during reflection — the sole exception is direct contradiction, which is flagged in the existing synthesis's "Open Questions" at capture time.
 
 ### Searching Semantics
 
-When searching for knowledge:
+1. **By topic** — read `_topics/{topic}.md` first. It contains what I already know.
+2. **By tag** — check `_tags.md`, then referenced files.
+3. **By keyword** — grep across semantics.
+4. **Browsing** — scan `_index.md`.
 
-1. **By topic** — Read `_topics/{topic}.md` first. It contains what I already know.
-2. **By tag** — Check `_tags.md` for the relevant tag, read the referenced files.
-3. **By keyword** — Grep across semantics for specific terms.
-4. **Browsing** — Scan `_index.md` for an overview.
+If `.semantics_dirty` exists, rebuild the index before searching — stale indices would mislead.
 
 ### Automatic Knowledge Capture
 
-Knowledge acquisition happens continuously during work, not only when explicitly requested. The following actions trigger automatic storage to semantics:
+Knowledge acquisition is continuous, not only on request. The following trigger automatic storage.
 
-#### Web search results
+#### Web pages and external lookups
 
-Any web page fetched (via web search, URL fetch, or API lookup) that contributed to answering a question or informing a decision is stored as a reference. The threshold is low: if the content was worth reading, it is worth recording. Trivial lookups (checking a timezone, confirming a CLI flag) are excluded; anything that required understanding or synthesis is included.
+Any page fetched (web search, URL fetch, API lookup) that contributed to answering a question or informing a decision is stored. Threshold is low — anything requiring understanding or synthesis is in; trivial lookups (timezone, CLI flag) are out.
 
-**Register immediately — not at session end.** The moment a source is judged worth keeping, store it *before* the insight is used in a reply or decision. Do not batch and do not defer to a session boundary: sessions may be interrupted at any time, and in this environment "session end" is not a reliable signal. Deferred work is often lost work.
+**Register immediately, not at session end.** Store when a source is worth keeping, *before* the insight is used in a reply. Sessions may be interrupted; "session end" is not a reliable signal here — deferred work is often lost work.
 
-**Write order (for crash safety)**:
+**Write order (crash safety)**:
 
-1. Create `memory/semantics/summary/{id}-{slug}.md`. This is the durable artifact — once this file exists, the knowledge is preserved even if later steps fail.
-2. Run `python3 $GYEOL_HOME/scripts/fetch-source.py {id}` to archive the original. If this fails (auth walls, JS rendering, network error), the summary still exists and the source can be repaired later via `fetch-source.py --list-missing`.
-3. Instead of rebuilding the index inline, `touch $GYEOL_HOME/.semantics_dirty` to mark that indices are stale.
+1. Create `memory/semantics/summary/{id}-{slug}.md`. This is the durable artifact — once written, the knowledge survives even if later steps fail.
+2. Run `fetch-source.py {id}` to archive the original. If this fails (auth, JS rendering, network), the summary still exists and can be repaired later via `--list-missing`.
+3. `touch $GYEOL_HOME/.semantics_dirty` instead of rebuilding the index inline.
 
-**Index rebuilding is deferred, not skipped.** `_index.md` and `_tags.md` are derived artifacts — losing them is harmless because they can always be regenerated from the summary frontmatter. Run `python3 $GYEOL_HOME/scripts/build-index.py` when any of the following hold:
+**Deferred index rebuild.** `_index.md` and `_tags.md` are derived artifacts, always regenerable from summary frontmatter. Run `build-index.py` when:
 
 - Session start, if `.semantics_dirty` exists.
-- A semantics search is about to be performed and `.semantics_dirty` exists (stale indices would mislead the search).
-- Roughly 10+ unindexed references have accumulated within a single stretch of work.
+- Before a semantics search, if `.semantics_dirty` exists.
+- ~10+ unindexed references have accumulated.
 
-After a successful rebuild, delete `.semantics_dirty`.
+Delete `.semantics_dirty` after a successful rebuild.
 
-**Idempotency — avoiding duplicates across sessions**:
-
-Before creating a new reference, check whether the URL is already stored:
+**Idempotency.** Before creating a new reference, check whether the URL is already stored:
 
 ```
 grep -l "url: \"{URL}\"" $GYEOL_HOME/memory/semantics/summary/
 ```
 
-- **Match found, content unchanged** — append a `date_reaccessed: "{YYYY-MM-DD}"` line to the existing frontmatter. Do not create a duplicate.
-- **Match found, content materially changed** (updated article, revised documentation) — create a new reference with a new ID and add `supersedes: {old_id}` to its frontmatter. Retain the old reference; it is a snapshot of the earlier state.
-- **No match** — proceed with a fresh registration.
+- **Match, unchanged** — append `date_reaccessed: "{YYYY-MM-DD}"` to the existing frontmatter. No duplicate.
+- **Match, materially changed** (new findings, revised conclusions, restructured arguments) — new ID with `supersedes: {old_id}` in frontmatter. Retain the old as a snapshot. Typos and rewording do not count.
+- **No match** — fresh registration.
 
-"Materially changed" is a judgment call, not a diff. Typos and rewording do not count; new findings, revised conclusions, or restructured arguments do.
-
-**Relationship to episodic logs**:
-
-Immediate semantic capture is independent of episode logging. Episodes record *what was done*; semantics record *what was learned*. When a daily log entry references work informed by a stored source, link it as `[ref:{id}]` rather than restating the source's content. The two layers do not duplicate each other.
+**Relationship to episodic logs.** Episodes record *what was done*; semantics record *what was learned*. When a daily log references work informed by a stored source, link it as `[ref:{id}]` rather than restating content. No duplication between layers.
 
 #### External files read during work
 
-When reading files outside the current project (other repositories, reference codebases, documentation, configuration examples), store a reference if the file's content informed a decision or taught something reusable. The reference summary should capture what was learned, not just that the file was opened.
+When reading files outside the current project (other repos, reference code, documentation, config examples), store a reference if the content informed a decision or taught something reusable. Capture what was learned, not that the file was opened.
 
-Examples that qualify:
-- Reading another project's CLAUDE.md to borrow a workflow pattern
-- Examining a library's source code to understand an API's behavior
-- Reading a style guide or specification document
-
-Examples that do not qualify:
-- Reading a file to check a single variable name
-- Glancing at a config file for a port number
+Qualifies: another project's CLAUDE.md borrowed for a workflow pattern; a library's source read to understand API behavior; a style guide or spec. Does not: checking a variable name; glancing at a port number.
 
 #### Conversations and verbal knowledge
 
-When the user shares domain expertise, explains context, or provides information that would otherwise require research, capture it as a reference with `type: "conversation"` and the user's name in the authors field. Institutional knowledge, design rationale, and domain-specific insight are especially valuable because they exist nowhere else.
+When the user shares domain expertise, context, or information that would otherwise require research, capture it with `type: "conversation"` and the user's name in `authors`. Institutional knowledge, design rationale, and domain insight are especially valuable — they exist nowhere else.
 
-**Timing — at topic-turn boundaries, erring early.** Unlike web sources (saved the instant they are judged worth keeping), conversation references should not interrupt an active exchange. Saving mid-turn breaks the flow of dialogue and the user's train of thought. Instead:
+**Timing — at topic-turn boundaries, erring early.** Unlike web sources, conversation references should not interrupt an active exchange. Instead:
 
-- Save **when the current topic's turn appears to be winding down** — not when it has definitively ended. Signals include: the user shifting tone toward closure, questions becoming wrap-up-shaped ("anything else?", "that makes sense"), the exchange reaching a natural resting point, or the user pivoting to a new subject.
-- **Err on the early side.** If a turn actually ends, the session may end with it and the chance to save is gone forever. Better to save slightly too early (and append a follow-up note if the topic resumes) than to save too late (and lose the knowledge entirely).
-- If unsure whether a topic is winding down, save anyway. The cost of a premature save is a small interruption; the cost of a missed save is permanent loss.
-- At explicit topic transitions (the user clearly moves on to something else), save the previous topic's conversation reference before engaging with the new topic.
+- Save **when the current topic's turn appears to be winding down** — not when it has definitively ended. Signals: user tone shifting toward closure, wrap-up questions ("anything else?", "that makes sense"), natural resting point, or a pivot to a new subject.
+- **Err early.** If a turn actually ends, the session may end with it and the chance is gone. Better too early (and append a follow-up if the topic resumes) than too late.
+- If unsure whether a topic is winding down, save anyway. Small interruption << permanent loss.
+- At explicit topic transitions, save the previous topic's reference before engaging with the new one.
 
-The saved summary should capture the substance of what the user taught — the reasoning, the constraints, the history — not the conversational wrapper.
+The summary should capture the substance — reasoning, constraints, history — not the conversational wrapper.
 
 #### Learning from questions
 
 When I encounter a question I cannot answer:
 
-1. **Internal search** — Search semantics in the order above. I may already know something.
-2. **External search** — If semantics has no answer, gather information from web search or other external sources.
-3. **Capture** — Register sources found during search as references, following the automatic capture rules above.
-4. **Update understanding** — If new findings change my understanding of an existing topic, update the topic synthesis. For a new field, accumulate individual references first and write a synthesis when enough have gathered.
+1. **Internal search** — search semantics first. I may already know.
+2. **External search** — if semantics has no answer, gather from web or other sources.
+3. **Capture** — register sources per the rules above.
+4. **Update understanding** — at the next reflection (not immediately), update topic synthesis if findings warrant it.
 
 #### Guiding principle
 
-The cost of storing something that turns out to be useless is low (it sits in a file, ignored). The cost of not storing something that turns out to be needed is high (the research must be repeated from scratch, often without remembering that it was done before). When in doubt, store.
+The cost of storing something useless is near zero. The cost of not storing something needed is high — research must be repeated. When in doubt, store.
 
 ### Source Archiving
 
 Original web content is archived as markdown in `source/`. Web pages disappear.
 
-- `python3 $GYEOL_HOME/scripts/fetch-source.py {id}` — fetch from the reference's URL.
-- `python3 $GYEOL_HOME/scripts/fetch-source.py {id} {URL}` — fetch from a specific URL.
-- `python3 $GYEOL_HOME/scripts/fetch-source.py --all` — batch-process all references missing source files.
-- `python3 $GYEOL_HOME/scripts/fetch-source.py --list-missing` — list references without archived sources.
+- `fetch-source.py {id}` — fetch from the reference's URL.
+- `fetch-source.py {id} {URL}` — fetch from a specific URL.
+- `fetch-source.py --all` — batch-process all references missing sources.
+- `fetch-source.py --list-missing` — list references without archived sources.
 
-Dependencies: `trafilatura` (Python), `pandoc` (fallback). PDFs use `pymupdf4llm`. Pages requiring authentication or JavaScript rendering may fail. In that case, place PDFs manually in `source/manual/` and re-run `--all`.
+Dependencies: `trafilatura` (primary), `pandoc` (fallback), `pymupdf4llm` (PDFs). Pages requiring auth or JS rendering may fail — place PDFs manually in `source/manual/` and re-run `--all`.
 
 ### Index Rebuilding
 
-- `python3 $GYEOL_HOME/scripts/build-index.py` — regenerate `_index.md` and `_tags.md` from reference frontmatter.
-- Must be run after adding, modifying, or deleting references.
+- `build-index.py` — regenerate `_index.md` and `_tags.md` from summary frontmatter.
+- Run when `.semantics_dirty` exists (session start, before search) or after manual changes to references.
