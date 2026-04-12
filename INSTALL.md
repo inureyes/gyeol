@@ -59,18 +59,22 @@ chmod +x ~/.config/gyeol/scripts/session-bootstrap.sh
 mkdir -p ~/.config/gyeol/memory/{bonds,episodes/{daily,monthly,yearly,threads},reflections/{monthly,yearly},semantics/{summary,source/manual,_topics}}
 ```
 
-## Step 5: Detect agent systems and append instructions to all
+## Step 5: Detect the current agent system
 
-Check for all agent-specific directories. For **each one that exists**, **prepend** the gyeol agent instructions block (shown in Step 6 below) to the appropriate **global** configuration file. You may be using multiple agent systems simultaneously, and gyeol should be installed for each.
+You are reading this document in one of the following agent systems:
+- **Claude Code** (running in `~/.claude/`)
+- **Gemini CLI** (running in `~/.gemini/`)
+- **OpenAI Codex** (running in `~/.codex/`)
+
+Install gyeol **only for the agent system in which you are currently running this file**.
 
 ### Agent Detection
 
-Check for all of the following. Install for each one that exists:
+Determine which agent is executing this installation:
 
-1. If `~/.claude/` directory exists → Install for **Claude Code**
-2. If `~/.gemini/` directory exists → Install for **Gemini CLI**
-3. If `~/.codex/` directory exists → Install for **OpenAI Codex**
-4. If none exist but you know which agent(s) you're using → Create the directory/directories (e.g., `mkdir -p ~/.claude ~/.gemini`) and treat them as active
+1. If you are in Claude Code → Treat as `~/.claude/` (Claude Code)
+2. If you are in Gemini CLI → Treat as `~/.gemini/` (Gemini CLI)
+3. If you are in OpenAI Codex → Treat as `~/.codex/` (OpenAI Codex)
 
 | Agent System | Global Config File |
 |-------------|-------------------|
@@ -80,10 +84,10 @@ Check for all of the following. Install for each one that exists:
 
 **Rules:**
 
-- For each agent system detected, update its corresponding global config file
+- Update **only** the global config file for the current agent system
 - If the global config file already exists, prepend the gyeol block at the **top** of the file, followed by a blank line and the existing content. Do not duplicate if the gyeol block is already present (check for the marker `<!-- gyeol:begin -->`).
 - If the global config file does not exist, create it with the gyeol block as its sole content.
-- Ensure the parent directory exists before writing (e.g., `mkdir -p ~/.claude ~/.gemini ~/.codex` to prepare for all three)
+- Ensure the parent directory exists before writing (e.g., `mkdir -p ~/.claude` for Claude Code)
 
 ## Step 6: Agent instructions block
 
@@ -143,13 +147,13 @@ On session end, update the daily log, `_recent.md`, and any relevant threads.
 <!-- gyeol:end -->
 ~~~
 
-## Step 7: Install agent hooks (one block for each detected system)
+## Step 7: Install agent hook for the current system
 
-The global config files from Step 5 contain a bootstrap instruction (`Before anything else, read SOUL.md`), but some agent harnesses wrap global config files in an "optional reference context" frame, which causes the agent to treat the bootstrap as reference material rather than mandatory execution. To make the bootstrap robust, install an agent hook for each system that delivers `SOUL.md`, `IDENTITY.md`, `SELF.md`, and `_recent.md` as first-class session context by running `~/.config/gyeol/scripts/session-bootstrap.sh`.
+The global config file from Step 5 contains a bootstrap instruction (`Before anything else, read SOUL.md`), but some agent harnesses wrap global config files in an "optional reference context" frame, which causes the agent to treat the bootstrap as reference material rather than mandatory execution. To make the bootstrap robust, install an agent hook that delivers `SOUL.md`, `IDENTITY.md`, `SELF.md`, and `_recent.md` as first-class session context by running `~/.config/gyeol/scripts/session-bootstrap.sh`.
 
 The script uses the `GYEOL_BOOTSTRAP_DONE` environment variable to prevent redundant execution within a session. If the harness spawns a new process for each hook invocation, the variable resets naturally, ensuring the bootstrap runs once per session regardless of how many hooks fire.
 
-**For each agent system detected in Step 5, follow the corresponding block below.**
+**Based on the agent system detected in Step 5, follow the corresponding block below.**
 
 ### Claude Code (if `~/.claude/` exists)
 
@@ -226,10 +230,10 @@ If your agent system does not support hooks at all, skip this step — the meta-
 After completing all steps, report the following to the user:
 
 1. Where `$GYEOL_HOME` was set (`~/.config/gyeol` or equivalent)
-2. Which global config files were updated (e.g., `~/.claude/CLAUDE.md`, `~/.gemini/GEMINI.md`, `~/.codex/AGENTS.md`)
-3. Which hooks were installed and in which settings files (e.g., SessionStart hook in `~/.claude/settings.json`, BeforeModel hooks in `~/.gemini/settings.json` and `~/.codex/settings.json`)
+2. Which global config file was updated (e.g., `~/.claude/CLAUDE.md`, `~/.gemini/GEMINI.md`, or `~/.codex/AGENTS.md`)
+3. Which hook was installed and in which settings file (e.g., SessionStart hook in `~/.claude/settings.json`, or BeforeModel hook in `~/.gemini/settings.json`)
 4. Whether this is a fresh install or an update
-5. Remind the user that on the next session start in any of these agent systems, the First Activation procedure will run — they will be asked for a name and their own name (once per agent system, or only once total if they share the same `$GYEOL_HOME`)
+5. Remind the user that on the next session start in this agent system, the First Activation procedure will run — they will be asked for a name and their own name
 
 ## Updating
 
