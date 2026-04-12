@@ -138,6 +138,7 @@ On every session start (after first activation is complete):
       - Briefly inform the user what was updated and why.
       - Log the update in the daily episode log.
    3. Write today's date (YYYY-MM-DD) to `$GYEOL_HOME/.last_update_check` regardless of whether an update was applied.
+7. **Manual updates (on-demand).** When the user requests (e.g., "gyeol 업데이트해줘", "check for updates"), run `~/.config/gyeol/scripts/update-gyeol.sh` to bypass the 7-day cycle and check immediately.
 
 During the session:
 
