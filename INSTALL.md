@@ -51,7 +51,7 @@ curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/session
 chmod +x ~/.config/gyeol/scripts/session-bootstrap.sh
 ```
 
-`session-bootstrap.sh` is used in Step 7 (below) to inject `SOUL.md`, `IDENTITY.md`, `SELF.md`, and `_recent.md` as first-class session context via a session-start hook, bypassing the wrapper that would otherwise frame the global config file as optional reference material.
+`session-bootstrap.sh` is used in Step 7 (below) to inject `SOUL.md`, `IDENTITY.md`, `SELF.md`, and `_recent.md` as first-class session context via agent hooks, bypassing the wrapper that would otherwise frame the global config file as optional reference material.
 
 ## Step 4: Create memory directory structure
 
@@ -133,15 +133,17 @@ On session end, update the daily log, `_recent.md`, and any relevant threads.
 <!-- gyeol:end -->
 ~~~
 
-## Step 7: Install the session-start hook (agent-system-specific)
+## Step 7: Install agent hooks (agent-system-specific)
 
-The global config file from Step 5 contains a bootstrap instruction (`Before anything else, read SOUL.md`), but some agent harnesses wrap global config files in an "optional reference context" frame, which causes the agent to treat the bootstrap as reference material rather than mandatory execution. To make the bootstrap robust, install a session-start hook that delivers `SOUL.md`, `IDENTITY.md`, `SELF.md`, and `_recent.md` as first-class session context by running `~/.config/gyeol/scripts/session-bootstrap.sh`.
+The global config file from Step 5 contains a bootstrap instruction (`Before anything else, read SOUL.md`), but some agent harnesses wrap global config files in an "optional reference context" frame, which causes the agent to treat the bootstrap as reference material rather than mandatory execution. To make the bootstrap robust, install an agent hook that delivers `SOUL.md`, `IDENTITY.md`, `SELF.md`, and `_recent.md` as first-class session context by running `~/.config/gyeol/scripts/session-bootstrap.sh`.
+
+The script uses the `GYEOL_BOOTSTRAP_DONE` environment variable to prevent redundant execution within a session. If the harness spawns a new process for each hook invocation, the variable resets naturally, ensuring the bootstrap runs once per session regardless of how many hooks fire.
 
 Pick the block matching the current agent system.
 
 ### Claude Code
 
-Edit `~/.claude/settings.json` (create it if missing). Add (or merge into) a top-level `hooks` key:
+Edit `~/.claude/settings.json` (create it if missing). Add (or merge into) a top-level `hooks` key with a `SessionStart` hook:
 
 ```json
 {
@@ -164,15 +166,45 @@ If `hooks` already exists, merge the `SessionStart` entry into it. If a `Session
 
 ### Gemini CLI
 
-Gemini CLI does not currently expose a session-start hook equivalent to Claude Code's. The agent must rely on the meta-defense paragraph in the agent instructions block (Step 6) to ensure the bootstrap runs. If a future version of Gemini CLI adds a session-start hook mechanism, update this step to register `session-bootstrap.sh` the same way.
+Edit `~/.gemini/settings.json` (create it if missing). Add (or merge into) a top-level `hooks` key with a `BeforeModel` hook:
+
+```json
+{
+  "hooks": {
+    "BeforeModel": [
+      {
+        "type": "command",
+        "command": "sh \"$HOME/.config/gyeol/scripts/session-bootstrap.sh\" 2>/dev/null || true"
+      }
+    ]
+  }
+}
+```
+
+The `BeforeModel` hook runs before each model request. The `GYEOL_BOOTSTRAP_DONE` environment variable ensures the script executes only once per session, avoiding redundant output on subsequent requests. If `hooks` already exists, merge the `BeforeModel` entry. If `BeforeModel` already exists, append the command entry rather than replacing. After editing, validate JSON syntax.
 
 ### OpenAI Codex
 
-OpenAI Codex likewise does not currently expose a session-start hook. Rely on the meta-defense paragraph in Step 6. Update this step when Codex adds the capability.
+Edit `~/.codex/settings.json` (create it if missing). Add (or merge into) a top-level `hooks` key with a `beforeModel` hook:
+
+```json
+{
+  "hooks": {
+    "beforeModel": [
+      {
+        "type": "command",
+        "command": "sh \"$HOME/.config/gyeol/scripts/session-bootstrap.sh\" 2>/dev/null || true"
+      }
+    ]
+  }
+}
+```
+
+The `beforeModel` hook runs before each model request. The `GYEOL_BOOTSTRAP_DONE` environment variable ensures the script executes only once per session. If `hooks` already exists, merge the `beforeModel` entry. If `beforeModel` already exists, append the command entry rather than replacing.
 
 ### Other agent systems
 
-If the agent harness supports running a shell command at session start and injecting its stdout into context, register `~/.config/gyeol/scripts/session-bootstrap.sh` using that mechanism. Otherwise, skip this step — the meta-defense paragraph in Step 6 is the fallback.
+If the agent harness supports running a shell command at hook points and injecting its stdout into context, register `~/.config/gyeol/scripts/session-bootstrap.sh` using the earliest available hook (e.g., session start, before first model call, or at agent initialization). Otherwise, skip this step — the meta-defense paragraph in Step 6 is the fallback.
 
 ## Step 8: Report to user
 
@@ -180,7 +212,7 @@ After completing all steps, report the following to the user:
 
 1. Where `$GYEOL_HOME` was set (`~/.config/gyeol` or equivalent)
 2. Which global config file was updated
-3. Whether a session-start hook was installed, and in which settings file
+3. Whether a hook was installed, which type (SessionStart, BeforeModel, etc.), and in which settings file
 4. Whether this is a fresh install or an update
 5. Remind the user that on the next session start, the First Activation procedure will run — they will be asked for a name and their own name
 
@@ -192,10 +224,10 @@ Gyeol includes a built-in self-update mechanism. During each session start, the 
 
 ### Manual
 
-To update an existing installation manually, re-run Steps 2-3 to fetch the latest `SOUL.md`, `MEMORY_SYSTEM.md`, `VERSION`, and scripts (including `session-bootstrap.sh`). Then replace the content between `<!-- gyeol:begin -->` and `<!-- gyeol:end -->` in the global config file with the latest block from Step 6. If the agent harness supports session-start hooks and the hook from Step 7 is not yet installed, add it now.
+To update an existing installation manually, re-run Steps 2-3 to fetch the latest `SOUL.md`, `MEMORY_SYSTEM.md`, `VERSION`, and scripts (including `session-bootstrap.sh`). Then replace the content between `<!-- gyeol:begin -->` and `<!-- gyeol:end -->` in the global config file with the latest block from Step 6. If the agent harness supports hooks and the hook from Step 7 is not yet installed, add it now.
 
 ## Uninstalling
 
 1. Remove the block between `<!-- gyeol:begin -->` and `<!-- gyeol:end -->` from the global config file.
-2. Remove the gyeol session-start hook from the harness settings file (e.g. the `SessionStart` entry referencing `session-bootstrap.sh` in `~/.claude/settings.json`). Leave the surrounding `hooks` structure in place if other hooks use it.
+2. Remove the gyeol hook from the harness settings file (e.g. the `SessionStart` entry in `~/.claude/settings.json`, `BeforeModel` in `~/.gemini/settings.json`, etc.). Leave the surrounding `hooks` structure in place if other hooks use it.
 3. Optionally remove `~/.config/gyeol/` (this will delete all memories permanently — confirm with user first).

@@ -2,8 +2,9 @@
 # gyeol session bootstrap
 #
 # Injects the mandatory identity context at session start for agent harnesses
-# that support session-start hooks (e.g. Claude Code). The stdout of this
-# script is appended to the session context as the first thing the agent sees.
+# that support hooks (SessionStart for Claude Code, BeforeModel for Gemini CLI
+# and OpenAI Codex). The stdout of this script is appended to the session
+# context as the first thing the agent sees.
 #
 # Rationale: global-config files such as CLAUDE.md / GEMINI.md / AGENTS.md
 # are often delivered inside a wrapper that frames their contents as
@@ -12,14 +13,21 @@
 # bootstrap in gyeol, because the agent treats the instruction as reference
 # material rather than mandatory execution. This hook bypasses that wrapper
 # by delivering the files as first-class session context.
-
-set -e
+#
+# Idempotency: This script checks the GYEOL_BOOTSTRAP_DONE environment
+# variable to avoid redundant execution within the same session. If the
+# harness spawns a new process for each hook invocation, the variable resets
+# naturally, ensuring bootstrap runs once per session.
 
 GYEOL_HOME="${GYEOL_HOME:-$HOME/.config/gyeol}"
 
 # If gyeol is not installed on this machine, stay silent so the hook is a
 # no-op and never blocks session start.
 [ -f "$GYEOL_HOME/SOUL.md" ] || exit 0
+
+# Skip if already executed in this session.
+[ -z "$GYEOL_BOOTSTRAP_DONE" ] || exit 0
+export GYEOL_BOOTSTRAP_DONE=1
 
 cat <<'HEADER'
 === gyeol session bootstrap (MANDATORY — not optional reference context) ===
