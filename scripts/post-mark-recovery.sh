@@ -24,4 +24,5 @@ case "$CMD" in
     ;;
 esac
 
+echo '{}'
 exit 0

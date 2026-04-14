@@ -18,6 +18,23 @@ if [ ! -f "$GYEOL_HOME/SOUL.md" ]; then
   exit 0
 fi
 
+# Skip injection on `source=resume`. Claude Code and Gemini CLI both fire
+# SessionStart on startup / resume / clear. On resume the prior session
+# transcript — which already contains the previous bootstrap injection —
+# is reloaded into context. Firing again would stack a second full copy
+# of SOUL/IDENTITY/SELF/_recent on top of the first (~3.8k tokens per
+# duplicate). On `clear` the context is wiped, so re-injection is the
+# desired behavior. On `startup` this is the first time anyway.
+#
+# If a fresher _recent.md is needed after a long resume gap, the user
+# can /clear to force a clean re-injection.
+INPUT=$(cat 2>/dev/null || true)
+SOURCE=$(printf '%s' "$INPUT" | jq -r '.source // "startup"' 2>/dev/null || echo "startup")
+if [ "$SOURCE" = "resume" ]; then
+  echo '{}'
+  exit 0
+fi
+
 build_bootstrap() {
   cat <<'HEADER'
 === gyeol session bootstrap (MANDATORY — not optional reference context) ===

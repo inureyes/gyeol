@@ -15,4 +15,9 @@ SESSION_ID=$(printf '%s' "$INPUT" | jq -r '.session_id // empty')
 [ -n "$SESSION_ID" ] || exit 0
 
 touch "/tmp/gyeol_session_${SESSION_ID}.substantive" 2>/dev/null || true
+
+# Always emit an empty JSON object so harnesses that treat stdout as
+# JSON (Gemini CLI: "Silence is Mandatory", Codex: PostToolUse ignores
+# non-JSON) never see a parse warning.
+echo '{}'
 exit 0
