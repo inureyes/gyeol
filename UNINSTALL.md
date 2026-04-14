@@ -38,14 +38,26 @@ Find the settings file for your agent system:
 |-------------|-------------------|
 | Claude Code | `~/.claude/settings.json` |
 | Gemini CLI | `~/.gemini/settings.json` |
-| OpenAI Codex | `~/.codex/settings.json` |
+| OpenAI Codex | `~/.codex/hooks.json` |
 
-Open the settings file and locate the `hooks` object. Find and remove the gyeol hook:
-- **Claude Code**: Remove the entry under `hooks.SessionStart` that references `session-bootstrap.sh`
-- **Gemini CLI**: Remove the entry under `hooks.BeforeModel` that references `session-bootstrap.sh`
-- **OpenAI Codex**: Remove the entry under `hooks.beforeModel` that references `session-bootstrap.sh`
+Open the settings file and locate the `hooks` object. Find and remove every entry whose `command` references a script under `~/.config/gyeol/scripts/`:
 
-If the `hooks` object becomes empty after removal, you may remove the entire `hooks` key. If other hooks remain, leave the `hooks` structure in place.
+- **Claude Code** (`~/.claude/settings.json`): Remove gyeol entries across all of the following hook groups:
+  - `hooks.SessionStart` — `session-bootstrap-json.sh` (or legacy `session-bootstrap.sh`)
+  - `hooks.PostToolUse` — `post-mark-substantive.sh` and `post-mark-recovery.sh` (there may be multiple entries, including `Write|Edit` and `Bash` matchers with conditional `if` clauses for `git commit:*` and `git show:*`)
+  - `hooks.Stop` — `stop-check-daily.sh`
+- **Gemini CLI** (`~/.gemini/settings.json`): Remove gyeol entries across:
+  - `hooks.SessionStart` — `session-bootstrap-json.sh`
+  - `hooks.AfterTool` — entries with matchers `write_file|replace` and `run_shell_command` that reference `post-mark-substantive.sh`, `post-mark-substantive-if-commit.sh`, or `post-mark-recovery.sh`
+  - `hooks.AfterAgent` — `stop-check-daily.sh` (invoked with `GYEOL_BLOCK_DECISION=deny`)
+  - Also remove any legacy `hooks.BeforeModel` entry pointing at `session-bootstrap.sh`
+- **OpenAI Codex** (`~/.codex/hooks.json`): Remove gyeol entries across:
+  - `hooks.SessionStart` — `session-bootstrap-json.sh`
+  - `hooks.PostToolUse` — entries with matchers `Write|Edit` and `^Bash$` that reference `post-mark-substantive.sh`, `post-mark-substantive-if-commit.sh`, or `post-mark-recovery.sh`
+  - `hooks.Stop` — `stop-check-daily.sh`
+  - If `~/.codex/hooks.json` contains nothing but gyeol hooks, you may delete the file entirely. Codex's `~/.codex/config.toml` is a separate file and is not touched by gyeol.
+
+For each agent, after removing the individual gyeol entries, also drop any hook group wrapper objects that become empty. If the `hooks` object itself becomes empty, you may remove the entire `hooks` key. If other non-gyeol hooks remain, leave the surrounding `hooks` structure in place.
 
 If `settings.json` becomes empty after cleanup, you may delete the file.
 

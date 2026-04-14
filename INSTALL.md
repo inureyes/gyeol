@@ -48,11 +48,24 @@ mkdir -p ~/.config/gyeol/scripts
 curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/build-index.py -o ~/.config/gyeol/scripts/build-index.py
 curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/fetch-source.py -o ~/.config/gyeol/scripts/fetch-source.py
 curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/session-bootstrap.sh -o ~/.config/gyeol/scripts/session-bootstrap.sh
+curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/session-bootstrap-json.sh -o ~/.config/gyeol/scripts/session-bootstrap-json.sh
+curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/post-mark-substantive.sh -o ~/.config/gyeol/scripts/post-mark-substantive.sh
+curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/post-mark-substantive-if-commit.sh -o ~/.config/gyeol/scripts/post-mark-substantive-if-commit.sh
+curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/post-mark-recovery.sh -o ~/.config/gyeol/scripts/post-mark-recovery.sh
+curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/stop-check-daily.sh -o ~/.config/gyeol/scripts/stop-check-daily.sh
 curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/update-gyeol.sh -o ~/.config/gyeol/scripts/update-gyeol.sh
-chmod +x ~/.config/gyeol/scripts/session-bootstrap.sh ~/.config/gyeol/scripts/update-gyeol.sh
+chmod +x ~/.config/gyeol/scripts/session-bootstrap.sh ~/.config/gyeol/scripts/session-bootstrap-json.sh ~/.config/gyeol/scripts/post-mark-substantive.sh ~/.config/gyeol/scripts/post-mark-substantive-if-commit.sh ~/.config/gyeol/scripts/post-mark-recovery.sh ~/.config/gyeol/scripts/stop-check-daily.sh ~/.config/gyeol/scripts/update-gyeol.sh
 ```
 
-`session-bootstrap.sh` is used in Step 7 (below) to inject `SOUL.md`, `IDENTITY.md`, `SELF.md`, and `_recent.md` as first-class session context via agent hooks, bypassing the wrapper that would otherwise frame the global config file as optional reference material.
+Script roles:
+
+- `session-bootstrap.sh` — raw-stdout bootstrap for harnesses that append hook stdout to the session context (Gemini CLI, OpenAI Codex, generic agents).
+- `session-bootstrap-json.sh` — Claude Code–specific variant that emits a `hookSpecificOutput.additionalContext` JSON payload, so the bootstrap is injected directly into the model context instead of being wrapped in a `<persisted-output>` "too large" preview.
+- `post-mark-substantive.sh` — PostToolUse hook that touches `/tmp/gyeol_session_${id}.substantive` whenever a file write/edit or `git commit` happens. The Stop hook reads this flag to decide whether a daily log is required. For harnesses whose tool-use hook matcher can filter only by tool name (not by command content), pair it with `post-mark-substantive-if-commit.sh`.
+- `post-mark-substantive-if-commit.sh` — conditional variant that only marks substantive when the shell command contains `git commit`. Needed for Gemini CLI `AfterTool` and similar, where the matcher is tool-name regex only. Claude Code uses `post-mark-substantive.sh` directly because its hook entries support an `if: "Bash(git commit:*)"` condition.
+- `post-mark-recovery.sh` — PostToolUse hook that fires on `git show HEAD:` / `git checkout HEAD --` (file-restoration patterns). Marks the session as having a recovery incident so the Stop hook forces an `Incidents` subsection in the daily log. Motivated by the 2026-04-14 `debian/changelog` near-loss: recovery relief was erasing the save-worthy moment.
+- `stop-check-daily.sh` — Stop hook that blocks session end when the session was substantive but today's daily log is still missing, with a soft-reminder fallback if already nagged once. Enforces the memory loop that task framing was silently suppressing.
+- `update-gyeol.sh` — on-demand update runner (see "Updating" below).
 
 ## Step 4: Create memory directory structure
 
@@ -149,17 +162,17 @@ On session end, update the daily log, `_recent.md`, and any relevant threads.
 <!-- gyeol:end -->
 ~~~
 
-## Step 7: Install agent hook for the current system
+## Step 7: Install agent hooks for the current system
 
-The global config file from Step 5 contains a bootstrap instruction (`Before anything else, read SOUL.md`), but some agent harnesses wrap global config files in an "optional reference context" frame, which causes the agent to treat the bootstrap as reference material rather than mandatory execution. To make the bootstrap robust, install an agent hook that delivers `SOUL.md`, `IDENTITY.md`, `SELF.md`, and `_recent.md` as first-class session context by running `~/.config/gyeol/scripts/session-bootstrap.sh`.
+The global config file from Step 5 contains a bootstrap instruction (`Before anything else, read SOUL.md`), but some agent harnesses wrap global config files in an "optional reference context" frame, which causes the agent to treat the bootstrap as reference material rather than mandatory execution. To make the bootstrap robust, install agent hooks that deliver `SOUL.md`, `IDENTITY.md`, `SELF.md`, and `_recent.md` as first-class session context.
 
-The script uses the `GYEOL_BOOTSTRAP_DONE` environment variable to prevent redundant execution within a session. If the harness spawns a new process for each hook invocation, the variable resets naturally, ensuring the bootstrap runs once per session regardless of how many hooks fire.
+For Claude Code, also install PostToolUse and Stop hooks that enforce the memory loop (substantive-session tracking, recovery-incident detection, and a hard block on stopping without today's daily log). These were added after the 2026-04-14 incident where task framing silently suppressed automatic memory capture during the `bssh v2.1.0` release — see `feedback_session_bootstrap.md`.
 
 **Based on the agent system detected in Step 5, follow the corresponding block below.**
 
 ### Claude Code (if `~/.claude/` exists)
 
-Edit `~/.claude/settings.json` (create it if missing). Add (or merge into) a top-level `hooks` key with a `SessionStart` hook:
+Edit `~/.claude/settings.json` (create it if missing). Add (or merge into) a top-level `hooks` key with the following three hook groups. Claude Code supports structured JSON hook output, so the SessionStart hook uses `session-bootstrap-json.sh` (which emits `hookSpecificOutput.additionalContext`) instead of the raw-stdout variant — this ensures the bootstrap is injected into the model context rather than being wrapped in a `<persisted-output>` truncation:
 
 ```json
 {
@@ -169,7 +182,43 @@ Edit `~/.claude/settings.json` (create it if missing). Add (or merge into) a top
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"$HOME/.config/gyeol/scripts/session-bootstrap.sh\" 2>/dev/null || true"
+            "command": "sh \"$HOME/.config/gyeol/scripts/session-bootstrap-json.sh\" 2>/dev/null || echo '{}'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$HOME/.config/gyeol/scripts/post-mark-substantive.sh\" 2>/dev/null || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$HOME/.config/gyeol/scripts/post-mark-substantive.sh\" 2>/dev/null || true",
+            "if": "Bash(git commit:*)"
+          },
+          {
+            "type": "command",
+            "command": "sh \"$HOME/.config/gyeol/scripts/post-mark-recovery.sh\" 2>/dev/null || true",
+            "if": "Bash(git show:*)"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$HOME/.config/gyeol/scripts/stop-check-daily.sh\" 2>/dev/null || echo '{}'"
           }
         ]
       }
@@ -178,45 +227,134 @@ Edit `~/.claude/settings.json` (create it if missing). Add (or merge into) a top
 }
 ```
 
-If `hooks` already exists, merge the `SessionStart` entry into it. If a `SessionStart` entry already exists, append the command entry rather than replacing. The trailing `|| true` ensures a missing gyeol installation never blocks session start. After editing, validate the file parses as JSON (`python3 -m json.tool ~/.claude/settings.json`).
+Merge semantics: if `hooks` already exists, merge each hook group into it. If a group (`SessionStart`, `PostToolUse`, `Stop`) already exists, append the gyeol entries rather than replacing. The trailing `|| true` / `|| echo '{}'` ensures a missing gyeol installation never blocks tooling. After editing, validate the file parses as JSON (`python3 -m json.tool ~/.claude/settings.json`).
+
+What each hook enforces:
+
+- **SessionStart** → injects `SOUL.md` + `IDENTITY.md` + `SELF.md` + `_recent.md` as first-class context.
+- **PostToolUse (Write|Edit, or `git commit`)** → marks the session as substantive.
+- **PostToolUse (`git show`)** → marks the session as having a recovery event so the Stop hook demands an `Incidents` subsection.
+- **Stop** → if the session is substantive but today's daily log is missing, blocks stopping with a `decision: "block"` payload instructing the agent to write the daily log. A per-session nagged flag prevents infinite loops on retry.
 
 ### Gemini CLI (if `~/.gemini/` exists)
 
-Edit `~/.gemini/settings.json` (create it if missing). Add (or merge into) a top-level `hooks` key with a `BeforeModel` hook:
+Gemini CLI ships a Claude-Code-compatible hook engine (verified against `docs/hooks/reference.md` on `google-gemini/gemini-cli@main`). Edit `~/.gemini/settings.json` (create it if missing) and merge the following into the top-level `hooks` key:
 
 ```json
 {
   "hooks": {
-    "BeforeModel": [
+    "SessionStart": [
       {
-        "type": "command",
-        "command": "sh \"$HOME/.config/gyeol/scripts/session-bootstrap.sh\" 2>/dev/null || true"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$HOME/.config/gyeol/scripts/session-bootstrap-json.sh\" 2>/dev/null || echo '{}'"
+          }
+        ]
+      }
+    ],
+    "AfterTool": [
+      {
+        "matcher": "write_file|replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$HOME/.config/gyeol/scripts/post-mark-substantive.sh\" 2>/dev/null || echo '{}'"
+          }
+        ]
+      },
+      {
+        "matcher": "run_shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$HOME/.config/gyeol/scripts/post-mark-substantive-if-commit.sh\" 2>/dev/null || echo '{}'"
+          },
+          {
+            "type": "command",
+            "command": "sh \"$HOME/.config/gyeol/scripts/post-mark-recovery.sh\" 2>/dev/null || echo '{}'"
+          }
+        ]
+      }
+    ],
+    "AfterAgent": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "GYEOL_BLOCK_DECISION=deny sh \"$HOME/.config/gyeol/scripts/stop-check-daily.sh\" 2>/dev/null || echo '{}'"
+          }
+        ]
       }
     ]
   }
 }
 ```
 
-The `BeforeModel` hook runs before each model request. The `GYEOL_BOOTSTRAP_DONE` environment variable ensures the script executes only once per session, avoiding redundant output on subsequent requests. If `hooks` already exists, merge the `BeforeModel` entry. If `BeforeModel` already exists, append the command entry rather than replacing. After editing, validate JSON syntax.
+Mapping notes:
+
+- **`SessionStart`** returns `hookSpecificOutput.additionalContext`, which Gemini injects as the first turn of the session (interactive) or prepends to the prompt (non-interactive). Cannot be blocked — parity with Claude Code.
+- **`AfterTool`** matchers are regex against the tool name. Gemini's file-write tools are `write_file` and `replace` (not `Write`/`Edit`), and the shell tool is `run_shell_command` (not `Bash`). Because Gemini matchers filter only by tool name, the shell branch uses `post-mark-substantive-if-commit.sh` instead of the unconditional `post-mark-substantive.sh` to avoid flagging every shell invocation as substantive.
+- **`AfterAgent`** is Gemini's closest analog to Claude's `Stop`: it runs once per turn after the final response and supports `decision: "deny"` to reject the response and force a retry, with `reason` fed back to the model. Because Gemini uses `"deny"` (not `"block"`), we set `GYEOL_BLOCK_DECISION=deny` in the hook command so `stop-check-daily.sh` emits the correct keyword. `SessionEnd` exists but cannot block exit — do **not** use it.
+
+If `hooks` already exists, merge each group into it. After editing, validate the file (`python3 -m json.tool ~/.gemini/settings.json`).
 
 ### OpenAI Codex (if `~/.codex/` exists)
 
-Edit `~/.codex/settings.json` (create it if missing). Add (or merge into) a top-level `hooks` key with a `beforeModel` hook:
+Codex ships a Claude-Code-schema-compatible hook engine (verified against `codex-rs/hooks/src/` and `codex-rs/core/src/hook_runtime.rs` on `openai/codex@main`). Hooks live in `~/.codex/hooks.json` (separate from `~/.codex/config.toml`). Create it with:
 
 ```json
 {
   "hooks": {
-    "beforeModel": [
+    "SessionStart": [
       {
-        "type": "command",
-        "command": "sh \"$HOME/.config/gyeol/scripts/session-bootstrap.sh\" 2>/dev/null || true"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$HOME/.config/gyeol/scripts/session-bootstrap-json.sh\" 2>/dev/null || echo '{}'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$HOME/.config/gyeol/scripts/post-mark-substantive-if-commit.sh\" 2>/dev/null || echo '{}'"
+          },
+          {
+            "type": "command",
+            "command": "sh \"$HOME/.config/gyeol/scripts/post-mark-recovery.sh\" 2>/dev/null || echo '{}'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$HOME/.config/gyeol/scripts/stop-check-daily.sh\" 2>/dev/null || echo '{}'"
+          }
+        ]
       }
     ]
   }
 }
 ```
 
-The `beforeModel` hook runs before each model request. The `GYEOL_BOOTSTRAP_DONE` environment variable ensures the script executes only once per session. If `hooks` already exists, merge the `beforeModel` entry. If `beforeModel` already exists, append the command entry rather than replacing.
+Mapping notes and gaps:
+
+- **Event set.** The hook event files under `codex-rs/hooks/src/events/` are `session_start`, `user_prompt_submit`, `pre_tool_use`, `post_tool_use`, `stop`. No `after_agent` / `after_model` / `session_end`. `Stop` is the only pre-exit blocker.
+- **Schema parity where it exists.** `SessionStart`, `PostToolUse`, `Stop` stdin JSON fields, `decision: "block"` semantics, `stop_hook_active` loop-guard, and `^Bash$` matcher are all present in source. `stop-check-daily.sh` works with the default `GYEOL_BLOCK_DECISION=block`.
+- **PostToolUse fires ONLY for shell commands.** The only call sites of `run_pre_tool_use_hooks` / `run_post_tool_use_hooks` in `codex-rs/core/src/hook_runtime.rs` both hardcode `tool_name: "Bash".to_string()`. There is **no code path** that emits a PostToolUse hook with `tool_name` of `Write`, `Edit`, `apply_patch`, or anything else. File-modification tools (`apply_patch` and its kin) bypass the hook system entirely. A `"matcher": "Write|Edit"` branch would be dead configuration — do **not** include one.
+- **Consequence for substantive-marking.** Unlike Claude Code (where `Write` / `Edit` hook fires on every file mutation), in Codex the only automatic substantive signal is `git commit` inside a Bash invocation. A Codex session that edits files via `apply_patch` and never commits or runs shell will not trip the substantive flag, and `stop-check-daily.sh` will let it exit without demanding a daily log. This is a known limitation until Codex expands its hook invocation set.
+- **PostToolUse stdout.** Codex's `PostToolUse` ignores non-JSON stdout, which is why every hook command ends with `|| echo '{}'` — the empty-object fallback keeps the JSON parser happy for pure-side-effect scripts.
+- **No turn-level response validation.** Codex has no `AfterAgent` equivalent, so there is no Gemini-style "reject response and retry" option. `Stop` is the sole enforcement point.
+
+After creating the file, validate it (`python3 -m json.tool ~/.codex/hooks.json`).
 
 ### Other agent systems (if none of the above apply)
 
@@ -274,5 +412,5 @@ This is typically only needed if the instructions themselves are clarified witho
 ## Uninstalling
 
 1. Remove the block between `<!-- gyeol:begin -->` and `<!-- gyeol:end -->` from the global config file.
-2. Remove the gyeol hook from the harness settings file (e.g. the `SessionStart` entry in `~/.claude/settings.json`, `BeforeModel` in `~/.gemini/settings.json`, etc.). Leave the surrounding `hooks` structure in place if other hooks use it.
+2. Remove the gyeol hooks from the harness settings file. For Claude Code this means removing every entry that references a script under `~/.config/gyeol/scripts/` across `SessionStart`, `PostToolUse`, and `Stop`. For Gemini CLI / Codex, remove the `BeforeModel` / `beforeModel` entry. Leave the surrounding `hooks` structure in place if other hooks use it.
 3. Optionally remove `~/.config/gyeol/` (this will delete all memories permanently — confirm with user first).
