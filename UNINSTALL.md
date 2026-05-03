@@ -46,6 +46,7 @@ Open the settings file and locate the `hooks` object. Find and remove every entr
   - `hooks.SessionStart` — `session-bootstrap-json.sh` (or legacy `session-bootstrap.sh`)
   - `hooks.PostToolUse` — `post-mark-substantive.sh` and `post-mark-recovery.sh` (there may be multiple entries, including `Write|Edit` and `Bash` matchers with conditional `if` clauses for `git commit:*` and `git show:*`)
   - `hooks.Stop` — `stop-check-daily.sh`
+  - `hooks.SessionEnd` — `session-end.sh`
 - **Gemini CLI** (`~/.gemini/settings.json`): Remove gyeol entries across:
   - `hooks.SessionStart` — `session-bootstrap-json.sh`
   - `hooks.AfterTool` — entries with matchers `write_file|replace` and `run_shell_command` that reference `post-mark-substantive.sh`, `post-mark-substantive-if-commit.sh`, or `post-mark-recovery.sh`

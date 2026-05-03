@@ -111,8 +111,9 @@ curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/post-ma
 curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/post-mark-substantive-if-commit.sh -o ~/.config/gyeol/scripts/post-mark-substantive-if-commit.sh
 curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/post-mark-recovery.sh -o ~/.config/gyeol/scripts/post-mark-recovery.sh
 curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/stop-check-daily.sh -o ~/.config/gyeol/scripts/stop-check-daily.sh
+curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/session-end.sh -o ~/.config/gyeol/scripts/session-end.sh
 curl -fsSL https://raw.githubusercontent.com/inureyes/gyeol/main/scripts/update-gyeol.sh -o ~/.config/gyeol/scripts/update-gyeol.sh
-chmod +x ~/.config/gyeol/scripts/session-bootstrap.sh ~/.config/gyeol/scripts/session-bootstrap-json.sh ~/.config/gyeol/scripts/post-mark-substantive.sh ~/.config/gyeol/scripts/post-mark-substantive-if-commit.sh ~/.config/gyeol/scripts/post-mark-recovery.sh ~/.config/gyeol/scripts/stop-check-daily.sh ~/.config/gyeol/scripts/update-gyeol.sh
+chmod +x ~/.config/gyeol/scripts/session-bootstrap.sh ~/.config/gyeol/scripts/session-bootstrap-json.sh ~/.config/gyeol/scripts/post-mark-substantive.sh ~/.config/gyeol/scripts/post-mark-substantive-if-commit.sh ~/.config/gyeol/scripts/post-mark-recovery.sh ~/.config/gyeol/scripts/stop-check-daily.sh ~/.config/gyeol/scripts/session-end.sh ~/.config/gyeol/scripts/update-gyeol.sh
 ```
 
 Script roles:
@@ -123,6 +124,7 @@ Script roles:
 - `post-mark-substantive-if-commit.sh` — conditional variant that only marks substantive when the shell command contains `git commit`. Needed for Gemini CLI `AfterTool` and similar, where the matcher is tool-name regex only. Claude Code uses `post-mark-substantive.sh` directly because its hook entries support an `if: "Bash(git commit:*)"` condition.
 - `post-mark-recovery.sh` — PostToolUse hook that fires on `git show HEAD:` / `git checkout HEAD --` (file-restoration patterns). Marks the session as having a recovery incident so the Stop hook forces an `Incidents` subsection in the daily log. Motivated by the 2026-04-14 `debian/changelog` near-loss: recovery relief was erasing the save-worthy moment.
 - `stop-check-daily.sh` — Stop hook that blocks session end when the session was substantive but today's daily log is still missing, with a soft-reminder fallback if already nagged once. Enforces the memory loop that task framing was silently suppressing.
+- `session-end.sh` — SessionEnd hook (Claude Code) that records `{"end": "<UTC ISO 8601>", "cwd": "<path>"}` to `$GYEOL_HOME/.session-log.jsonl` whenever a session ends. Append-only, never blocks. Used as the **evidence channel** for the staleness check inside `session-bootstrap.sh` / `session-bootstrap-json.sh`: if `_recent.md`'s `last_updated` is more than a day behind, the next bootstrap surfaces the recorded session-end entries plus a directive telling the agent to retrospect and write missing daily logs *before* responding. Complements `stop-check-daily.sh` — Stop blocks exit on substantive sessions with no daily log, while `session-end.sh` + the staleness check recover gaps where Stop never fired (clean `/clear`, harness crash, sessions predating the hook install, or non-substantive sessions whose memory updates were nevertheless meaningful). Do not register on per-turn hooks. Do not register on Codex (no `session_end` event) or Gemini CLI (`SessionEnd` cannot inject context, but the evidence-recording role still works there if the upstream evolves; `update-gyeol` will wire it in if/when that lands).
 - `update-gyeol.sh` — on-demand update runner (see "Updating" below).
 
 ## Step 4: Create memory directory structure
@@ -280,19 +282,30 @@ Edit `~/.claude/settings.json` (create it if missing). Add (or merge into) a top
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$HOME/.config/gyeol/scripts/session-end.sh\" 2>/dev/null || true"
+          }
+        ]
+      }
     ]
   }
 }
 ```
 
-Merge semantics: if `hooks` already exists, merge each hook group into it. If a group (`SessionStart`, `PostToolUse`, `Stop`) already exists, append the gyeol entries rather than replacing. The trailing `|| true` / `|| echo '{}'` ensures a missing gyeol installation never blocks tooling. After editing, validate the file parses as JSON (`python3 -m json.tool ~/.claude/settings.json`).
+Merge semantics: if `hooks` already exists, merge each hook group into it. If a group (`SessionStart`, `PostToolUse`, `Stop`, `SessionEnd`) already exists, append the gyeol entries rather than replacing. The trailing `|| true` / `|| echo '{}'` ensures a missing gyeol installation never blocks tooling. After editing, validate the file parses as JSON (`python3 -m json.tool ~/.claude/settings.json`).
 
 What each hook enforces:
 
-- **SessionStart** → injects `SOUL.md` + `IDENTITY.md` + `SELF.md` + `_recent.md` as first-class context.
+- **SessionStart** → injects `SOUL.md` + `IDENTITY.md` + `SELF.md` + `_recent.md` as first-class context. Also runs the **staleness check**: if `_recent.md`'s `last_updated` is a day or more behind today, it appends a directive listing the gap (and any session-end records left by `session-end.sh`) and tells the agent to retrospect and write missing daily logs *before* responding to the user's first message.
 - **PostToolUse (Write|Edit, or `git commit`)** → marks the session as substantive.
 - **PostToolUse (`git show`)** → marks the session as having a recovery event so the Stop hook demands an `Incidents` subsection.
 - **Stop** → if the session is substantive but today's daily log is missing, blocks stopping with a `decision: "block"` payload instructing the agent to write the daily log. A per-session nagged flag prevents infinite loops on retry.
+- **SessionEnd** → append-only evidence record. Writes `{"end": "<UTC ISO 8601>", "cwd": "<path>"}` to `$GYEOL_HOME/.session-log.jsonl`. Cannot block exit (SessionEnd fires after the agent has stopped) and is not meant to — its purpose is to leave a breadcrumb that the *next* SessionStart's staleness check can surface. Recovers the gap when Stop never fired: clean `/clear`, harness crash, the session predating hook installation, or non-substantive sessions whose memory updates were nevertheless meaningful.
 
 ### Gemini CLI (if `~/.gemini/` exists)
 
@@ -470,5 +483,5 @@ This is typically only needed if the instructions themselves are clarified witho
 ## Uninstalling
 
 1. Remove the block between `<!-- gyeol:begin -->` and `<!-- gyeol:end -->` from the global config file.
-2. Remove the gyeol hooks from the harness settings file. For Claude Code this means removing every entry that references a script under `~/.config/gyeol/scripts/` across `SessionStart`, `PostToolUse`, and `Stop`. For Gemini CLI / Codex, remove the `BeforeModel` / `beforeModel` entry. Leave the surrounding `hooks` structure in place if other hooks use it.
+2. Remove the gyeol hooks from the harness settings file. For Claude Code this means removing every entry that references a script under `~/.config/gyeol/scripts/` across `SessionStart`, `PostToolUse`, `Stop`, and `SessionEnd`. For Gemini CLI / Codex, remove the equivalent gyeol-owned entries (see UNINSTALL.md for the full per-harness list). Leave the surrounding `hooks` structure in place if other hooks use it.
 3. Optionally remove `~/.config/gyeol/` (this will delete all memories permanently — confirm with user first).

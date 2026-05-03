@@ -71,4 +71,79 @@ do
   cat "$f"
 done
 
+# --- Staleness check ---------------------------------------------------------
+# Compare `last_updated` in _recent.md to today. If a day or more has passed,
+# emit a strong directive instructing the agent to retrospect and record the
+# missing activity BEFORE responding to the user's first message. Also surface
+# any session-end records left by session-end.sh so the agent has factual
+# evidence (timestamps, cwds) to anchor the retrospect.
+#
+# This complements the Stop / AfterAgent hooks: those block exit on
+# substantive sessions with no daily log, but cannot recover gaps that
+# accumulated across prior sessions whose Stop hook didn't fire (clean
+# /clear, harness crash, sessions before the hook was installed, etc.).
+RECENT="$GYEOL_HOME/memory/episodes/_recent.md"
+SESSION_LOG="$GYEOL_HOME/.session-log.jsonl"
+
+if [ -f "$RECENT" ]; then
+  last_date=$(awk '
+    /^last_updated:/ {
+      gsub(/[\047"]/, "", $2)
+      print $2
+      exit
+    }
+  ' "$RECENT")
+
+  if [ -n "$last_date" ]; then
+    today=$(date +%Y-%m-%d)
+    days_since=$(python3 -c "
+import sys
+from datetime import date
+try:
+    a = date.fromisoformat('$last_date')
+    b = date.fromisoformat('$today')
+    print((b - a).days)
+except Exception:
+    sys.exit(1)
+" 2>/dev/null)
+
+    if [ -n "$days_since" ] && [ "$days_since" -ge 1 ]; then
+      printf '\n=== STALE EPISODE LOG (MANDATORY ACTION REQUIRED) ===\n'
+      printf '`_recent.md` last_updated is %s — %s day(s) ago.\n' "$last_date" "$days_since"
+      printf 'Sessions almost certainly occurred in that gap without being logged.\n\n'
+
+      if [ -f "$SESSION_LOG" ] && [ -s "$SESSION_LOG" ]; then
+        cnt=$(wc -l < "$SESSION_LOG" | tr -d ' ')
+        printf 'session-end.sh recorded %s session(s) since the last log update:\n\n' "$cnt"
+        cat "$SESSION_LOG"
+        printf '\n'
+      fi
+
+      cat <<'STALE_DIRECTIVE'
+BEFORE responding to the user's first message:
+
+1. Retrospect on the gap. Use `~/.claude/projects/` (or harness-specific
+   project directory) mtimes, git log across active repos, and the
+   session-end records above as anchors. Do not fabricate detail you
+   cannot verify.
+2. Write missing daily logs under
+   `$GYEOL_HOME/memory/episodes/daily/YYYY-MM-DD.md` for the dates you
+   can reconstruct, even if a single line per day. Empty days can be
+   marked as such.
+3. Update `_recent.md`'s `last_updated` and the activity bullets so the
+   gap closes.
+4. After logs are written, truncate `$GYEOL_HOME/.session-log.jsonl` so
+   it no longer flags the same gap on the next session.
+
+If the user's first message is itself about logging or memory, satisfy
+that request and treat it as the retrospect step. Do NOT silently skip
+this directive — the gap is structural evidence that earlier
+session-end logging was missed, and ignoring it perpetuates the failure
+mode.
+
+STALE_DIRECTIVE
+    fi
+  fi
+fi
+
 printf '\n=== end gyeol bootstrap ===\n'
