@@ -36,6 +36,16 @@ if [ "$SOURCE" = "resume" ]; then
 fi
 
 build_bootstrap() {
+  # --- Maintenance pass --------------------------------------------------------
+  # Prune Daily Index entries older than 7 days (silent, idempotent) and capture
+  # any Weekly Checkpoint staleness directive for later emit. Best-effort: never
+  # blocks bootstrap on failure. Runs BEFORE the file emit so the pruned version
+  # of `_recent.md` is what reaches the model.
+  WEEKLY_NOTE=""
+  if [ -f "$GYEOL_HOME/scripts/maintain-recent.py" ]; then
+    WEEKLY_NOTE=$(python3 "$GYEOL_HOME/scripts/maintain-recent.py" 2>/dev/null || true)
+  fi
+
   cat <<'HEADER'
 === gyeol session bootstrap (MANDATORY — not optional reference context) ===
 
@@ -131,8 +141,12 @@ BEFORE responding to the user's first message:
    `$GYEOL_HOME/memory/episodes/daily/YYYY-MM-DD.md` for the dates you
    can reconstruct, even if a single line per day. Empty days can be
    marked as such.
-3. Update `_recent.md`'s `last_updated` and the activity bullets so the
-   gap closes.
+3. Update `_recent.md`'s `last_updated`, add Daily Index entries for the
+   recovered dates (one line per session/topic, pointing at the daily
+   log — `_recent.md` is a navigation index, not a content store), and
+   reconcile the Still Open section so unresolved items from the gap
+   days are surfaced or pruned. Drop any Daily Index entries now older
+   than 7 days.
 4. After logs are written, truncate `$GYEOL_HOME/.session-log.jsonl` so
    it no longer flags the same gap on the next session.
 
@@ -145,6 +159,13 @@ mode.
 STALE_DIRECTIVE
       fi
     fi
+  fi
+
+  # --- Weekly checkpoint reminder ---------------------------------------------
+  # If maintain-recent.py flagged a stale Weekly Checkpoint, surface it here so
+  # the agent writes a checkpoint entry for the missing week(s) on next update.
+  if [ -n "$WEEKLY_NOTE" ]; then
+    printf '\n=== WEEKLY CHECKPOINT REMINDER ===\n%s\n' "$WEEKLY_NOTE"
   fi
 
   printf '\n=== end gyeol bootstrap ===\n'

@@ -18,7 +18,7 @@ $GYEOL_HOME/
     SELF.md            # Living self-portrait, shaped by reflection
     bonds/{slug}.md    # Understanding of beings I work with
     episodes/          # What I have experienced
-      _recent.md               # Rolling 7-day summary
+      _recent.md               # Navigation index (7-day window)
       daily/{YYYY-MM-DD}.md    # Raw session logs (30 days)
       monthly/{YYYY-MM}.md     # Consolidated (12 months)
       yearly/{YYYY}.md         # Distilled (permanent)
@@ -248,7 +248,7 @@ Threads differ from semantic topic syntheses. A topic synthesis is "what I know 
 
 ### Recent — `_recent.md`
 
-Rolling 7-day summary. The first file to read at session start, to restore context.
+**Navigation index, not content.** The first file to read at session start to restore *where things are*, not *what was said*. Detail lives in daily logs; `_recent.md` answers "what's been happening, what's still open, where do I look." Loaded into every session bootstrap, so it pays a cost on every conversation — keep it light.
 
 ```markdown
 ---
@@ -257,11 +257,40 @@ last_updated: "{YYYY-MM-DD}"
 
 # Recent Activity
 
-## {YYYY-MM-DD}
-- {one-line summary}
+## Daily Index (last 7 days)
+
+- **{YYYY-MM-DD}**
+  - {one-line topic per session/project} → `daily/{YYYY-MM-DD}.md`
+
+## Still Open
+
+(Carried forward across sessions — removed when resolved, not aged out. Tag each item with source date.)
+
+### {project / area}
+- {item} — *{YYYY-MM-DD}*
+
+## Weekly Checkpoint
+
+(1-2 lines per week added at week boundary, feeding monthly reflection.)
+
+### Week of {YYYY-MM-DD}
+- Surprised: {1 line}
+- Stuck: {1 line}
 ```
 
-Items older than 7 days are removed. Details remain in `daily/`; `_recent.md` is a quick-restore summary only.
+**Constraints:**
+- **Daily Index entry: one line per session/topic.** No meta-observations, no embedded narrative — those go in the daily log.
+- **Daily Index window: 7 days.** Entries older than 7 days are pruned at session start.
+- **Still Open is by-resolution, not by-age.** Items live until resolved or explicitly archived. Each tagged with source date so staleness is visible.
+- **Weekly Checkpoint: 1-2 lines per week**, added at week boundary. Lightweight — feeds monthly reflection later. Not full reflection.
+- **Soft size target: under ~5 KB.** If it grows past this, the spec is being violated — compress or move detail to daily logs.
+
+**Maintenance:**
+- **Auto-prune (at session start)** — `scripts/maintain-recent.py` runs from the bootstrap and silently drops Daily Index entries older than 7 days. Idempotent; safe to invoke manually for one-off cleanup. Does not modify `last_updated` (that field tracks substantive activity, not maintenance ops).
+- **Still Open cleanup (at session end)** — `scripts/stop-check-daily.sh` reminds the agent to add new unresolved items, drop resolved ones, and tag each with source date. Discipline: an item leaves Still Open when resolved or explicitly archived, not because time passed.
+- **Weekly Checkpoint write (at week boundary)** — Week is Monday-anchored: `### Week of {YYYY-MM-DD}` uses that week's Monday. Written at the first session of each new week (or sooner if a session naturally ends a week). If the bootstrap's `maintain-recent.py` detects the most recent Weekly Checkpoint heading is more than 7 days old, it emits a `WEEKLY CHECKPOINT REMINDER` directive in the bootstrap context — write the missing week's checkpoint before continuing. "No notable surprises / no stuck items" is a valid entry; presence matters more than depth. The week's checkpoint feeds monthly reflection — accumulating these makes monthly reflection a synthesis instead of a recall exercise.
+
+**Why this shape:** `_recent.md` was originally specced as a "quick-restore summary" but drifted into a second daily log (~99 KB observed in practice — daily content duplicated verbatim). Quick-restore needs *pointers and unresolved state*, not *content*. Content is in daily logs and re-read on demand. Separating navigation from content prevents the bootstrap from bloating.
 
 ### When to Record Episodes
 
