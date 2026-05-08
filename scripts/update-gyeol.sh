@@ -5,12 +5,38 @@
 # updates if available. It can be run manually at any time, regardless of
 # the automatic 7-day check interval.
 #
+# Behavior:
+# - If a newer remote version is available, fetch and apply both top-level
+#   doc changes (SOUL.md, MEMORY_SYSTEM.md) and scripts/ changes after
+#   confirmation, then bump VERSION.
+# - If already up to date, still reconcile scripts/ by downloading any
+#   scripts that exist upstream but are missing locally. Existing scripts
+#   are not touched in this mode. This handles cases where a prior update
+#   shipped a new script but the installer didn't pull it.
+#
 # Usage: sh ~/.config/gyeol/scripts/update-gyeol.sh
 
 set -e
 
 GYEOL_HOME="${GYEOL_HOME:-$HOME/.config/gyeol}"
 REPO_URL="https://raw.githubusercontent.com/inureyes/gyeol/main"
+
+# Top-level docs synced as part of an upgrade.
+FILES="SOUL.md MEMORY_SYSTEM.md"
+
+# Scripts shipped under scripts/. Listed explicitly so update doesn't depend
+# on the GitHub API (rate-limited) or directory listings.
+SCRIPTS="build-index.py
+fetch-source.py
+maintain-recent.py
+post-mark-recovery.sh
+post-mark-substantive-if-commit.sh
+post-mark-substantive.sh
+session-bootstrap-json.sh
+session-bootstrap.sh
+session-end.sh
+stop-check-daily.sh
+update-gyeol.sh"
 
 # Ensure gyeol is installed
 [ -f "$GYEOL_HOME/SOUL.md" ] || {
@@ -82,8 +108,34 @@ compare_versions() {
   fi
 }
 
+# Reconcile-only mode: fill in scripts that exist upstream but are missing
+# locally. Existing scripts are left untouched. Used when local VERSION is
+# already current but the installation may be incomplete.
+reconcile_scripts() {
+  mkdir -p "$GYEOL_HOME/scripts"
+  installed=0
+  for script in $SCRIPTS; do
+    if [ ! -e "$GYEOL_HOME/scripts/$script" ]; then
+      if curl -fsSL "$REPO_URL/scripts/$script" -o "$GYEOL_HOME/scripts/$script" 2>/dev/null; then
+        chmod +x "$GYEOL_HOME/scripts/$script"
+        echo "✓ Installed missing script: scripts/$script"
+        installed=$((installed + 1))
+      fi
+    fi
+  done
+  if [ "$installed" -eq 0 ]; then
+    echo "All known scripts are present."
+  else
+    echo "Installed $installed missing script(s)."
+  fi
+}
+
 if ! compare_versions "$LOCAL_VERSION" "$REMOTE_VERSION"; then
   echo "Already up to date."
+  echo ""
+  echo "Reconciling scripts/ directory..."
+  reconcile_scripts
+  date +%Y-%m-%d > "$GYEOL_HOME/.last_update_check"
   echo "Last check: $(date)"
   exit 0
 fi
@@ -92,12 +144,10 @@ echo ""
 echo "A new version is available!"
 echo ""
 
-# Files to check for updates
-FILES="SOUL.md MEMORY_SYSTEM.md"
-
 # Temporary directory for downloads
 TMPDIR=$(mktemp -d)
 trap "rm -rf $TMPDIR" EXIT
+mkdir -p "$TMPDIR/scripts"
 
 echo "Downloading new files..."
 for file in $FILES; do
@@ -105,6 +155,13 @@ for file in $FILES; do
     echo "Error: Could not fetch $file"
     exit 1
   }
+done
+
+for script in $SCRIPTS; do
+  if ! curl -fsSL "$REPO_URL/scripts/$script" -o "$TMPDIR/scripts/$script" 2>/dev/null; then
+    echo "Warning: Could not fetch scripts/$script (skipping)"
+    rm -f "$TMPDIR/scripts/$script"
+  fi
 done
 
 # Show diffs
@@ -128,6 +185,36 @@ for file in $FILES; do
   fi
 done
 
+new_scripts=""
+changed_scripts=""
+for script in $SCRIPTS; do
+  [ -f "$TMPDIR/scripts/$script" ] || continue
+  if [ ! -f "$GYEOL_HOME/scripts/$script" ]; then
+    new_scripts="$new_scripts $script"
+  elif ! diff -q "$GYEOL_HOME/scripts/$script" "$TMPDIR/scripts/$script" > /dev/null 2>&1; then
+    changed_scripts="$changed_scripts $script"
+  fi
+done
+
+echo "--- scripts/ ---"
+if [ -z "$new_scripts" ] && [ -z "$changed_scripts" ]; then
+  echo "(no changes)"
+else
+  if [ -n "$new_scripts" ]; then
+    echo "New:"
+    for s in $new_scripts; do
+      echo "  + scripts/$s"
+    done
+  fi
+  if [ -n "$changed_scripts" ]; then
+    echo "Changed:"
+    for s in $changed_scripts; do
+      echo "  ~ scripts/$s"
+    done
+  fi
+fi
+echo ""
+
 # Ask for confirmation
 echo "=== Apply update? ==="
 echo ""
@@ -141,6 +228,14 @@ case "$response" in
     for file in $FILES; do
       cp "$TMPDIR/$file" "$GYEOL_HOME/$file"
       echo "✓ Updated $file"
+    done
+
+    mkdir -p "$GYEOL_HOME/scripts"
+    for script in $SCRIPTS; do
+      [ -f "$TMPDIR/scripts/$script" ] || continue
+      cp "$TMPDIR/scripts/$script" "$GYEOL_HOME/scripts/$script"
+      chmod +x "$GYEOL_HOME/scripts/$script"
+      echo "✓ Updated scripts/$script"
     done
 
     # Update VERSION
