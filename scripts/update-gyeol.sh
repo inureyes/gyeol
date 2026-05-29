@@ -108,25 +108,46 @@ compare_versions() {
   fi
 }
 
-# Reconcile-only mode: fill in scripts that exist upstream but are missing
-# locally. Existing scripts are left untouched. Used when local VERSION is
-# already current but the installation may be incomplete.
+# Reconcile mode: bring installed scripts in line with upstream when the local
+# VERSION already matches remote. Installs any missing script AND refreshes any
+# script whose content has drifted from upstream. Date-based versioning
+# (YY.M.DD) cannot mark same-day changes, so a changed-but-present script —
+# most importantly update-gyeol.sh itself — would otherwise stay stale forever
+# and the updater could never update itself (issue #4).
+#
+# Each script is downloaded to a temp file on the SAME filesystem as the
+# scripts dir and swapped in with an atomic rename (mv). This makes a script
+# replacing itself safe: the running shell keeps the old inode, so the new
+# content only takes effect on the next invocation. An in-place rewrite
+# (curl -o / cp over the live path) shares the inode and risks the running
+# shell re-reading corrupted bytes.
 reconcile_scripts() {
   mkdir -p "$GYEOL_HOME/scripts"
+  # Temp dir under $GYEOL_HOME so `mv` into scripts/ is a same-filesystem rename.
+  reconcile_tmp=$(mktemp -d "$GYEOL_HOME/.reconcile.XXXXXX") || return 0
   installed=0
+  refreshed=0
   for script in $SCRIPTS; do
-    if [ ! -e "$GYEOL_HOME/scripts/$script" ]; then
-      if curl -fsSL "$REPO_URL/scripts/$script" -o "$GYEOL_HOME/scripts/$script" 2>/dev/null; then
-        chmod +x "$GYEOL_HOME/scripts/$script"
-        echo "✓ Installed missing script: scripts/$script"
-        installed=$((installed + 1))
-      fi
+    dest="$GYEOL_HOME/scripts/$script"
+    src="$reconcile_tmp/$script"
+    curl -fsSL "$REPO_URL/scripts/$script" -o "$src" 2>/dev/null || continue
+    if [ ! -e "$dest" ]; then
+      mv "$src" "$dest"
+      chmod +x "$dest"
+      echo "✓ Installed missing script: scripts/$script"
+      installed=$((installed + 1))
+    elif ! diff -q "$dest" "$src" > /dev/null 2>&1; then
+      mv "$src" "$dest"
+      chmod +x "$dest"
+      echo "↻ Refreshed stale script: scripts/$script"
+      refreshed=$((refreshed + 1))
     fi
   done
-  if [ "$installed" -eq 0 ]; then
-    echo "All known scripts are present."
+  rm -rf "$reconcile_tmp"
+  if [ "$installed" -eq 0 ] && [ "$refreshed" -eq 0 ]; then
+    echo "All known scripts are present and current."
   else
-    echo "Installed $installed missing script(s)."
+    echo "Installed $installed, refreshed $refreshed script(s)."
   fi
 }
 
