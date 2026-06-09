@@ -253,12 +253,22 @@ case "$response" in
     done
 
     mkdir -p "$GYEOL_HOME/scripts"
+    # Stage on the SAME filesystem as scripts/ and swap in with an atomic mv,
+    # mirroring reconcile_scripts(). A plain `cp` overwrites in place and shares
+    # the inode, so update-gyeol.sh replacing itself mid-run corrupts this very
+    # shell's read of its own script: it resumes at a stale byte offset, runs a
+    # partial token, and emits a spurious "ho: command not found" at the tail
+    # (issue #7). An atomic rename gives each script a fresh inode; the running
+    # shell keeps the old inode and reads cleanly to EOF.
+    apply_tmp=$(mktemp -d "$GYEOL_HOME/.update.XXXXXX") || { echo "Error: could not create staging dir"; exit 1; }
     for script in $SCRIPTS; do
       [ -f "$TMPDIR/scripts/$script" ] || continue
-      cp "$TMPDIR/scripts/$script" "$GYEOL_HOME/scripts/$script"
-      chmod +x "$GYEOL_HOME/scripts/$script"
+      cp "$TMPDIR/scripts/$script" "$apply_tmp/$script"
+      chmod +x "$apply_tmp/$script"
+      mv "$apply_tmp/$script" "$GYEOL_HOME/scripts/$script"
       echo "✓ Updated scripts/$script"
     done
+    rm -rf "$apply_tmp"
 
     # Update VERSION
     echo "$REMOTE_VERSION" > "$GYEOL_HOME/VERSION"
