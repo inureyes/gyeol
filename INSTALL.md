@@ -376,7 +376,22 @@ If `hooks` already exists, merge each group into it. After editing, validate the
 
 ### OpenAI Codex (if `~/.codex/` exists)
 
-Codex ships a Claude-Code-schema-compatible hook engine (verified against `codex-rs/hooks/src/` and `codex-rs/core/src/hook_runtime.rs` on `openai/codex@main`). Hooks live in `~/.codex/hooks.json` (separate from `~/.codex/config.toml`). Create it with:
+Codex ships a Claude-Code-schema-compatible hook engine (verified against `codex-rs/hooks/src/` and `codex-rs/core/src/hook_runtime.rs` on `openai/codex@main`). Hook configuration is split across two files: a feature flag in `~/.codex/config.toml` that enables the engine, and the hook definitions in `~/.codex/hooks.json`.
+
+**1. Enable the hook engine in `~/.codex/config.toml`.** Recent Codex builds gate the hook engine behind a `[features]` flag. Append (or merge into) the following at the end of `config.toml`:
+
+```toml
+[features]
+hooks = true
+```
+
+Notes:
+
+- The key was previously named `codex_hooks` and was renamed to `hooks` upstream. If you already have `codex_hooks = true`, rename it — Codex will otherwise emit `⚠ [features].codex_hooks is deprecated. Use [features].hooks instead.` at every startup.
+- If a `[features]` table already exists (added by another tool such as a status bar agent), add the `hooks = true` line inside it rather than declaring the table twice — TOML parsers reject duplicate tables.
+- The flag enables the hook engine globally for Codex; you still need step 2 below to register what actually runs.
+
+**2. Define the hooks in `~/.codex/hooks.json`** (separate from `config.toml`). Create it with:
 
 ```json
 {
