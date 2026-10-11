@@ -238,6 +238,83 @@ reconcile_block() {
   rm -f "$block_tmp"
 }
 
+# Claude Code SessionStart hook migration (issue #9): Claude Code enforces a
+# 10,000-character cap per hook command's `additionalContext`. Migrate any legacy
+# single-command `session-bootstrap-json.sh` entry (without `--part=`) in
+# `~/.claude/settings.json` into the two split `--part=soul` and `--part=memory`
+# entries in-place while preserving all other hooks and settings.
+reconcile_claude_hooks() {
+  claude_settings="$HOME/.claude/settings.json"
+  [ -f "$claude_settings" ] || return 0
+  grep -q "session-bootstrap-json.sh" "$claude_settings" 2>/dev/null || return 0
+  python3 - "$claude_settings" <<'PY'
+import json
+import os
+import sys
+import tempfile
+
+path = sys.argv[1]
+try:
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+except Exception:
+    sys.exit(0)
+
+hooks = data.get("hooks")
+if not isinstance(hooks, dict):
+    sys.exit(0)
+
+session_start = hooks.get("SessionStart")
+if not isinstance(session_start, list):
+    sys.exit(0)
+
+soul_cmd = 'sh "$HOME/.config/gyeol/scripts/session-bootstrap-json.sh" --part=soul 2>/dev/null || echo \'{}\''
+mem_cmd = 'sh "$HOME/.config/gyeol/scripts/session-bootstrap-json.sh" --part=memory 2>/dev/null || echo \'{}\''
+
+changed = False
+for group in session_start:
+    if not isinstance(group, dict):
+        continue
+    inner = group.get("hooks")
+    if not isinstance(inner, list):
+        continue
+    new_inner = []
+    group_changed = False
+    for item in inner:
+        if (
+            isinstance(item, dict)
+            and isinstance(item.get("command"), str)
+            and "session-bootstrap-json.sh" in item["command"]
+            and "--part" not in item["command"]
+        ):
+            new_inner.append({"type": "command", "command": soul_cmd})
+            new_inner.append({"type": "command", "command": mem_cmd})
+            group_changed = True
+            changed = True
+        else:
+            new_inner.append(item)
+    if group_changed:
+        group["hooks"] = new_inner
+
+if not changed:
+    sys.exit(0)
+
+parent = os.path.dirname(path)
+fd, tmp_path = tempfile.mkstemp(prefix=".settings.", suffix=".tmp", dir=parent)
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    os.replace(tmp_path, path)
+    print(f"↻ Migrated Claude Code SessionStart hook to split --part=soul/--part=memory in {path}")
+except Exception:
+    try:
+        os.unlink(tmp_path)
+    except OSError:
+        pass
+PY
+}
+
 if ! compare_versions "$LOCAL_VERSION" "$REMOTE_VERSION"; then
   echo "Already up to date."
   echo ""
@@ -245,6 +322,7 @@ if ! compare_versions "$LOCAL_VERSION" "$REMOTE_VERSION"; then
   reconcile_scripts
   reconcile_skill
   reconcile_block
+  reconcile_claude_hooks
   date +%Y-%m-%d > "$GYEOL_HOME/.last_update_check"
   echo "Last check: $(date)"
   exit 0
@@ -360,6 +438,7 @@ case "$response" in
 
     reconcile_skill
     reconcile_block
+    reconcile_claude_hooks
 
     # Update VERSION
     echo "$REMOTE_VERSION" > "$GYEOL_HOME/VERSION"

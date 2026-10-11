@@ -89,15 +89,22 @@ WRAPPER_RE = re.compile(
     r"|<USER_SETTINGS_CHANGE>.*?</USER_SETTINGS_CHANGE>",
     re.DOTALL,
 )
-# Review/hardening passes: a second-pass audit of work a primary session already
-# did. The 2026-05 audit found these are mostly supplementary and deliberately
-# not logged as separate episodes. Bucketed on their own so they do not drown the
-# genuine candidates, never hidden (you still judge).
+# Review/hardening passes and delegated worktree unit runs: supplementary to a
+# primary or orchestrator session that records the run once (per the
+# Delegation-Run Capture scope guard in MEMORY_SYSTEM.md). Bucketed on their own
+# so they do not drown genuine UNRECORDED candidates, never hidden (you still judge).
 SUPP_RE = re.compile(
     r"구현했습니다|구현을 (?:마쳤|완료했)습니다|보안상 문제는 없는지"
     r"|리뷰(?:해\s*주세요|합시다|합니다)|코드\s*리뷰|[Cc]ode review"
-    r"|Review (?:the|ONLY)\b|pr-implementation-hardening|epic-postmerge-hardening"
+    r"|Review (?:the|ONLY|PR|pull request)\b|pr-implementation-hardening|epic-postmerge-hardening"
+    r"|pr-reviewer|pr-security-checker|pr-finalizer|codex-reviewer|review-merge-pr"
+    r"|SubagentHandback|(?:You are implementing|Implement) (?:GitHub )?issue #\d+"
+    r"|Verify that the implementation"
 )
+WORKTREE_CWD_RE = re.compile(
+    r"(?:^|/)(?:wt-[^/]+|\.worktrees/[^/]+|worktrees/[^/]+)(?:/|$)"
+)
+TS_RE = re.compile(r'"(?:timestamp|created_at)"\s*:\s*"([^"]+)"')
 
 
 def gyeol_home() -> Path:
@@ -129,10 +136,12 @@ def repo_of(cwd: str) -> str:
 
 def collect_signals(text: str) -> set[str]:
     sig = set()
-    for m in REF_RE.finditer(text):
-        sig.add("#" + m.group(1))
-    for m in SHA_RE.finditer(text):
-        sig.add("sha:" + m.group(1)[:10])
+    if "github.com/" in text:
+        for m in REF_RE.finditer(text):
+            sig.add("#" + m.group(1))
+    if "[" in text:
+        for m in SHA_RE.finditer(text):
+            sig.add("sha:" + m.group(1)[:10])
     return sig
 
 
@@ -187,21 +196,24 @@ def scan_claude(since: date, until: date):
             for line in f.open(encoding="utf-8", errors="replace"):
                 if not line.strip():
                     continue
-                if EDIT_RE.search(line) or MUTATE_RE.search(line):
+                if not substantive and (EDIT_RE.search(line) or MUTATE_RE.search(line)):
                     substantive = True
-                signals |= collect_signals(line)
+                if "github.com/" in line or "[" in line:
+                    signals |= collect_signals(line)
+                ts_m = TS_RE.search(line)
+                if ts_m:
+                    dd = kst_date(ts_m.group(1))
+                    if dd:
+                        first_dt = dd if first_dt is None else min(first_dt, dd)
+                        last_dt = dd if last_dt is None else max(last_dt, dd)
+                if cwd is not None and prompt is not None:
+                    continue
                 try:
                     d = json.loads(line)
                 except ValueError:
                     continue
                 if cwd is None and isinstance(d.get("cwd"), str):
                     cwd = d["cwd"]
-                ts = d.get("timestamp")
-                if isinstance(ts, str):
-                    dd = kst_date(ts)
-                    if dd:
-                        first_dt = dd if first_dt is None else min(first_dt, dd)
-                        last_dt = dd if last_dt is None else max(last_dt, dd)
                 if prompt is None and d.get("type") == "user":
                     mc = (d.get("message") or {}).get("content")
                     if isinstance(mc, str):
@@ -235,7 +247,29 @@ def scan_codex(since: date, until: date):
     root = Path.home() / ".codex" / "sessions"
     if not root.is_dir():
         return
+    lo = since - timedelta(days=1)
+    hi = until + timedelta(days=1)
     for f in root.glob("**/*.jsonl"):
+        # Prefilter by YYYY/MM/DD directory date (cannot start after hi) and mtime.
+        try:
+            rel_parts = f.relative_to(root).parts
+            if (
+                len(rel_parts) >= 4
+                and rel_parts[0].isdigit()
+                and rel_parts[1].isdigit()
+                and rel_parts[2].isdigit()
+            ):
+                dir_day = date(int(rel_parts[0]), int(rel_parts[1]), int(rel_parts[2]))
+                if dir_day > hi:
+                    continue
+        except (ValueError, OSError):
+            pass
+        try:
+            mday = datetime.fromtimestamp(f.stat().st_mtime, KST).date()
+        except OSError:
+            continue
+        if mday < lo - timedelta(days=2) or mday > hi:
+            continue
         cwd = None
         first_dt = last_dt = None
         prompt = None
@@ -245,19 +279,22 @@ def scan_codex(since: date, until: date):
             for line in f.open(encoding="utf-8", errors="replace"):
                 if not line.strip():
                     continue
-                if EDIT_RE.search(line) or MUTATE_RE.search(line):
+                if not substantive and (EDIT_RE.search(line) or MUTATE_RE.search(line)):
                     substantive = True
-                signals |= collect_signals(line)
+                if "github.com/" in line or "[" in line:
+                    signals |= collect_signals(line)
+                ts_m = TS_RE.search(line)
+                if ts_m:
+                    dd = kst_date(ts_m.group(1))
+                    if dd:
+                        first_dt = dd if first_dt is None else min(first_dt, dd)
+                        last_dt = dd if last_dt is None else max(last_dt, dd)
+                if cwd is not None and prompt is not None:
+                    continue
                 try:
                     d = json.loads(line)
                 except ValueError:
                     continue
-                ts = d.get("timestamp")
-                if isinstance(ts, str):
-                    dd = kst_date(ts)
-                    if dd:
-                        first_dt = dd if first_dt is None else min(first_dt, dd)
-                        last_dt = dd if last_dt is None else max(last_dt, dd)
                 pl = d.get("payload") if isinstance(d.get("payload"), dict) else {}
                 if cwd is None and isinstance(pl.get("cwd"), str):
                     cwd = pl["cwd"]
@@ -326,19 +363,22 @@ def scan_antigravity(since: date, until: date):
                 for line in f.open(encoding="utf-8", errors="replace"):
                     if not line.strip():
                         continue
-                    if EDIT_RE.search(line) or MUTATE_RE.search(line):
+                    if not substantive and (EDIT_RE.search(line) or MUTATE_RE.search(line)):
                         substantive = True
-                    signals |= collect_signals(line)
+                    if "github.com/" in line or "[" in line:
+                        signals |= collect_signals(line)
+                    ts_m = TS_RE.search(line)
+                    if ts_m:
+                        dd = kst_date(ts_m.group(1))
+                        if dd:
+                            first_dt = dd if first_dt is None else min(first_dt, dd)
+                            last_dt = dd if last_dt is None else max(last_dt, dd)
+                    if cwd is not None and prompt is not None:
+                        continue
                     try:
                         d = json.loads(line)
                     except ValueError:
                         continue
-                    ts = d.get("created_at")
-                    if isinstance(ts, str):
-                        dd = kst_date(ts)
-                        if dd:
-                            first_dt = dd if first_dt is None else min(first_dt, dd)
-                            last_dt = dd if last_dt is None else max(last_dt, dd)
                     if prompt is None and d.get("type") == "USER_INPUT" and d.get("source") != "SYSTEM_SDK":
                         cnt = d.get("content")
                         if isinstance(cnt, str) and cnt.strip() and not cnt.startswith("=== gyeol session bootstrap"):
@@ -415,7 +455,7 @@ def classify(sess: dict, daily: dict[date, str]) -> str:
     text = window_text(daily, sess["start"], sess["end"])
     if sess["signals"] and any(sig_in_text(sig, text) for sig in sess["signals"]):
         return "covered"
-    if SUPP_RE.search(sess["summary"]):
+    if SUPP_RE.search(sess["summary"]) or WORKTREE_CWD_RE.search(sess.get("cwd", "")):
         return "supplementary"
     if sess["signals"]:
         return "unrecorded"
@@ -496,7 +536,7 @@ def main(argv=None) -> int:
     print(f"NEEDS JUDGMENT ({len(judgment)}) - substantive, no extractable signal (slides/docs/research may be here):")
     print("\n".join(line(s) for s in judgment) if judgment else "  (none)")
     print()
-    print(f"LIKELY SUPPLEMENTARY ({len(supplementary)}) - review/hardening passes over already-done work; usually absorbed, not separate episodes:")
+    print(f"LIKELY SUPPLEMENTARY ({len(supplementary)}) - review/hardening/delegated-worktree passes over already-done work; usually absorbed, not separate episodes:")
     print("\n".join(line(s) for s in supplementary) if supplementary else "  (none)")
     if a.all:
         print()

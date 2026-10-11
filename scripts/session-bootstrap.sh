@@ -64,23 +64,7 @@ to these files — they are the bootstrap, not a reference.
 
 HEADER
 
-for f in \
-  "$GYEOL_HOME/SOUL.md" \
-  "$GYEOL_HOME/memory/IDENTITY.md" \
-  "$GYEOL_HOME/memory/SELF.md" \
-  "$GYEOL_HOME/memory/episodes/_recent.md"
-do
-  [ -f "$f" ] || continue
-  # Display path relative to $HOME when possible, for readability.
-  case "$f" in
-    "$HOME"/*) rel="~${f#$HOME}" ;;
-    *)         rel="$f" ;;
-  esac
-  printf '\n--- %s ---\n' "$rel"
-  cat "$f"
-done
-
-# --- Staleness check ---------------------------------------------------------
+# --- Staleness check (emitted BEFORE file contents so it cannot be truncated) -
 # Compare `last_updated` in _recent.md to today. If a day or more has passed,
 # emit a strong directive instructing the agent to retrospect and record the
 # missing activity BEFORE responding to the user's first message. Also surface
@@ -159,11 +143,27 @@ STALE_DIRECTIVE
   fi
 fi
 
-# --- _recent.md maintenance directives ---------------------------------------
+# --- _recent.md maintenance directives (emitted BEFORE file contents) ---------
 # maintain-recent.py surfaces a stale Weekly Checkpoint and/or _recent.md bloat
 # here so the agent fixes them on the next update.
 if [ -n "$WEEKLY_NOTE" ]; then
   printf '\n=== _RECENT.MD MAINTENANCE ===\n%s\n' "$WEEKLY_NOTE"
 fi
+
+for f in \
+  "$GYEOL_HOME/SOUL.md" \
+  "$GYEOL_HOME/memory/IDENTITY.md" \
+  "$GYEOL_HOME/memory/SELF.md" \
+  "$GYEOL_HOME/memory/episodes/_recent.md"
+do
+  [ -f "$f" ] || continue
+  # Display path relative to $HOME when possible, for readability.
+  case "$f" in
+    "$HOME"/*) rel="~${f#$HOME}" ;;
+    *)         rel="$f" ;;
+  esac
+  printf '\n--- %s ---\n' "$rel"
+  cat "$f"
+done
 
 printf '\n=== end gyeol bootstrap ===\n'

@@ -19,6 +19,8 @@ Examples:
     python3 scripts/fetch-source.py --list-missing
 """
 
+from __future__ import annotations
+
 import glob
 import os
 import re
@@ -58,33 +60,75 @@ def get_config():
 SUMMARY_DIR = os.path.join(SEMANTICS_DIR, 'summary')
 
 
-def get_ref_file(ref_id: int) -> str | None:
+def extract_id_from_ref(ref_file: str) -> int | str | None:
+    with open(ref_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+    fm_match = re.match(r'^---\s*\n(.+?)\n---', content, re.DOTALL)
+    if fm_match:
+        id_match = re.search(r'^id:\s*(.+)$', fm_match.group(1), re.MULTILINE)
+        if id_match:
+            val = id_match.group(1).strip()
+            if (len(val) >= 2 and val[0] == val[-1] and val[0] in ('"', "'")):
+                val = val[1:-1]
+            if val.isdigit():
+                return int(val)
+            if val:
+                return val
+    basename = os.path.basename(ref_file)
+    m = re.match(r'^(\d+)-', basename)
+    return int(m.group(1)) if m else None
+
+
+def get_ref_file(ref_id: int | str) -> str | None:
     candidates: list[str] = []
-    for name in (f'{ref_id}', f'{ref_id:03d}'):
+    s_id = str(ref_id).strip()
+    exact_md = os.path.join(SUMMARY_DIR, f'{s_id}.md')
+    if os.path.isfile(exact_md):
+        return exact_md
+    names = [s_id]
+    if s_id.isdigit():
+        names.append(f'{int(s_id):03d}')
+    for name in names:
         candidates += [
             m for m in glob.glob(os.path.join(SUMMARY_DIR, f'{name}-*.md'))
             if not m.endswith('.source.md')
         ]
-    return candidates[0] if candidates else None
+    if candidates:
+        return candidates[0]
+    for f in sorted(glob.glob(os.path.join(SUMMARY_DIR, '[0-9]*-*.md'))):
+        if not f.endswith('.source.md') and str(extract_id_from_ref(f)) == s_id:
+            return f
+    return None
 
 
-def get_ref_slug(ref_file: str) -> str | None:
+def get_ref_slug(ref_file: str, ref_id: int | str | None = None) -> str | None:
     basename = os.path.basename(ref_file)
+    stem = basename[:-3] if basename.endswith('.md') else basename
+    if ref_id is not None:
+        s_id = str(ref_id).strip()
+        if stem == s_id:
+            return None
+        if stem.startswith(f'{s_id}-'):
+            return stem[len(s_id) + 1:]
+        if s_id.isdigit():
+            padded = f'{int(s_id):03d}'
+            if stem.startswith(f'{padded}-'):
+                return stem[len(padded) + 1:]
     match = re.match(r'^\d+-(.+)\.md$', basename)
     return match.group(1) if match else None
 
 
 def extract_url_from_ref(ref_file: str) -> str | None:
-    with open(ref_file, 'r') as f:
+    with open(ref_file, 'r', encoding='utf-8') as f:
         content = f.read()
-    match = re.search(r'^url:\s*"(.+?)"', content, re.MULTILINE)
-    return match.group(1) if match else None
+    match = re.search(r'^url:\s*["\']?([^"\'\n]+)["\']?', content, re.MULTILINE)
+    return match.group(1).strip() if match and match.group(1).strip() else None
 
 
 def extract_title_from_ref(ref_file: str) -> str | None:
-    with open(ref_file, 'r') as f:
+    with open(ref_file, 'r', encoding='utf-8') as f:
         content = f.read()
-    match = re.search(r'^title:\s*"(.+?)"', content, re.MULTILINE)
+    match = re.search(r'^title:\s*["\']?(.+?)["\']?\s*$', content, re.MULTILINE)
     return match.group(1) if match else None
 
 
@@ -214,31 +258,33 @@ def extract_markdown(html: str) -> str | None:
     return None
 
 
-def get_source_path(ref_id: int) -> str:
-    ref_file = get_ref_file(ref_id)
+def get_source_path(ref_id: int | str, ref_file: str | None = None) -> str:
+    if ref_file is None:
+        ref_file = get_ref_file(ref_id)
     if ref_file:
-        slug = get_ref_slug(ref_file)
+        slug = get_ref_slug(ref_file, ref_id)
         if slug:
             return os.path.join(SOURCE_DIR, f'{ref_id}-{slug}.source.md')
     return os.path.join(SOURCE_DIR, f'{ref_id}.source.md')
 
 
-def find_manual_pdf(ref_id: int) -> str | None:
+def find_manual_pdf(ref_id: int | str) -> str | None:
     if not os.path.isdir(MANUAL_DIR):
         return None
-    patterns = [
-        os.path.join(MANUAL_DIR, f'{ref_id}.pdf'),
-        os.path.join(MANUAL_DIR, f'{ref_id:03d}.pdf'),
-    ]
-    patterns += glob.glob(os.path.join(MANUAL_DIR, f'{ref_id}-*.pdf'))
-    patterns += glob.glob(os.path.join(MANUAL_DIR, f'{ref_id:03d}-*.pdf'))
+    s_id = str(ref_id).strip()
+    patterns = [os.path.join(MANUAL_DIR, f'{s_id}.pdf')]
+    if s_id.isdigit():
+        patterns.append(os.path.join(MANUAL_DIR, f'{int(s_id):03d}.pdf'))
+    patterns += glob.glob(os.path.join(MANUAL_DIR, f'{s_id}-*.pdf'))
+    if s_id.isdigit():
+        patterns += glob.glob(os.path.join(MANUAL_DIR, f'{int(s_id):03d}-*.pdf'))
     for p in patterns:
         if os.path.isfile(p):
             return p
     return None
 
 
-def fetch_and_save(ref_id: int, url: str) -> bool:
+def fetch_and_save(ref_id: int | str, url: str, ref_file: str | None = None) -> bool:
     manual_pdf = find_manual_pdf(ref_id)
     if manual_pdf:
         with open(manual_pdf, 'rb') as f:
@@ -246,8 +292,8 @@ def fetch_and_save(ref_id: int, url: str) -> bool:
         result = extract_pdf_markdown(data)
         if result:
             os.makedirs(SOURCE_DIR, exist_ok=True)
-            out_path = get_source_path(ref_id)
-            with open(out_path, 'w') as f:
+            out_path = get_source_path(ref_id, ref_file)
+            with open(out_path, 'w', encoding='utf-8') as f:
                 f.write(f'<!-- source: {url} -->\n')
                 f.write(f'<!-- manual-pdf: {os.path.relpath(manual_pdf)} -->\n\n')
                 f.write(result)
@@ -274,8 +320,8 @@ def fetch_and_save(ref_id: int, url: str) -> bool:
             return False
 
     os.makedirs(SOURCE_DIR, exist_ok=True)
-    out_path = get_source_path(ref_id)
-    with open(out_path, 'w') as f:
+    out_path = get_source_path(ref_id, ref_file)
+    with open(out_path, 'w', encoding='utf-8') as f:
         f.write(f'<!-- source: {url} -->\n\n')
         f.write(result)
         f.write('\n')
@@ -293,13 +339,11 @@ def fetch_all():
     failed = 0
 
     for ref_file in ref_files:
-        basename = os.path.basename(ref_file)
-        match = re.match(r'^(\d+)-', basename)
-        if not match:
+        ref_id = extract_id_from_ref(ref_file)
+        if ref_id is None:
             continue
-        ref_id = int(match.group(1))
 
-        source_path = get_source_path(ref_id)
+        source_path = get_source_path(ref_id, ref_file)
         legacy_path = os.path.join(SOURCE_DIR, f'{ref_id}.source.md')
         if os.path.exists(source_path) or os.path.exists(legacy_path):
             skipped += 1
@@ -311,7 +355,7 @@ def fetch_all():
             skipped += 1
             continue
 
-        if fetch_and_save(ref_id, url):
+        if fetch_and_save(ref_id, url, ref_file):
             fetched += 1
         else:
             failed += 1
@@ -323,12 +367,10 @@ def list_missing():
     ref_files = sorted(glob.glob(os.path.join(SUMMARY_DIR, '[0-9]*-*.md')))
     missing = []
     for ref_file in ref_files:
-        basename = os.path.basename(ref_file)
-        m = re.match(r'^(\d+)-(.+)\.md$', basename)
-        if not m:
+        ref_id = extract_id_from_ref(ref_file)
+        if ref_id is None:
             continue
-        ref_id = int(m.group(1))
-        source_path = get_source_path(ref_id)
+        source_path = get_source_path(ref_id, ref_file)
         legacy_path = os.path.join(SOURCE_DIR, f'{ref_id}.source.md')
         if os.path.exists(source_path) or os.path.exists(legacy_path):
             continue
@@ -366,12 +408,13 @@ def main():
         list_missing()
         return
 
-    ref_id = int(sys.argv[1])
+    raw_id = sys.argv[1].strip()
+    ref_id: int | str = int(raw_id) if raw_id.isdigit() else raw_id
+    ref_file = get_ref_file(ref_id)
 
     if len(sys.argv) >= 3:
         url = sys.argv[2]
     else:
-        ref_file = get_ref_file(ref_id)
         if not ref_file:
             print(f'Error: no reference file found for id {ref_id}')
             sys.exit(1)
@@ -380,7 +423,7 @@ def main():
             print(f'Error: no URL found in {ref_file}')
             sys.exit(1)
 
-    fetch_and_save(ref_id, url)
+    fetch_and_save(ref_id, url, ref_file)
 
 
 if __name__ == '__main__':

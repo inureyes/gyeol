@@ -9,10 +9,13 @@ Usage:
     python3 scripts/build-index.py
 """
 
+from __future__ import annotations
+
 import glob
 import os
 import re
 import sys
+import tempfile
 from collections import defaultdict
 from datetime import date
 
@@ -26,10 +29,45 @@ if not os.path.isdir(SEMANTICS_DIR) and os.path.isdir(
         os.path.join(_GYEOL_HOME, '.memory', 'semantics')):
     SEMANTICS_DIR = os.path.join(_GYEOL_HOME, '.memory', 'semantics')
 
+_ARRAY_TOKEN_RE = re.compile(
+    r'\s*(?:"([^"]*)"|\'([^\']*)\'|([^,]+?))\s*(?:,|$)'
+)
+
+
+def parse_yaml_array(inner: str) -> list[str]:
+    """Parse inline YAML array items (double-quoted, single-quoted, or unquoted)."""
+    inner = inner.strip()
+    if not inner:
+        return []
+    items: list[str] = []
+    for match in _ARRAY_TOKEN_RE.finditer(inner):
+        if match.group(0).strip() == '':
+            continue
+        val = (
+            match.group(1)
+            if match.group(1) is not None
+            else match.group(2)
+            if match.group(2) is not None
+            else (match.group(3) or '').strip()
+        )
+        if val != '':
+            items.append(val)
+    return items
+
+
+def ref_id_sort_key(ref_id: int | str) -> tuple[int, int, str]:
+    """Sort numeric IDs first by integer value, then string IDs lexicographically."""
+    if isinstance(ref_id, int):
+        return (0, ref_id, '')
+    s = str(ref_id).strip()
+    if s.isdigit():
+        return (0, int(s), '')
+    return (1, 0, s)
+
 
 def parse_frontmatter(filepath: str) -> dict | None:
     """Parse YAML frontmatter from a markdown file."""
-    with open(filepath, 'r') as f:
+    with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
 
     match = re.match(r'^---\s*\n(.+?)\n---', content, re.DOTALL)
@@ -39,19 +77,21 @@ def parse_frontmatter(filepath: str) -> dict | None:
     fm = {}
     for line in match.group(1).split('\n'):
         # Simple key: value parsing
-        kv = re.match(r'^(\w+):\s*(.+)$', line)
+        kv = re.match(r'^(\w+):\s*(.*)$', line)
         if not kv:
             continue
         key = kv.group(1)
         value = kv.group(2).strip()
 
-        # Parse arrays: ["a", "b"]
-        array_match = re.match(r'^\[(.+)\]$', value)
-        if array_match:
-            items = re.findall(r'"([^"]*)"', array_match.group(1))
-            fm[key] = items
-        # Parse quoted strings
-        elif value.startswith('"') and value.endswith('"'):
+        # Parse arrays: ["a", "b"], ['a', 'b'], [a, b], or []
+        array_match = re.match(r'^\[(.*)\]$', value)
+        if array_match is not None:
+            fm[key] = parse_yaml_array(array_match.group(1))
+        # Parse double-quoted strings
+        elif len(value) >= 2 and value.startswith('"') and value.endswith('"'):
+            fm[key] = value[1:-1]
+        # Parse single-quoted strings
+        elif len(value) >= 2 and value.startswith("'") and value.endswith("'"):
             fm[key] = value[1:-1]
         # Parse numbers
         elif re.match(r'^\d+$', value):
@@ -71,7 +111,7 @@ def collect_references() -> list[tuple[str, dict]]:
     for f in files:
         basename = os.path.basename(f)
         fm = parse_frontmatter(f)
-        if fm and 'id' in fm:
+        if fm and 'id' in fm and fm['id'] != '':
             refs.append((basename, fm))
     return refs
 
@@ -87,12 +127,19 @@ def build_master_index(refs: list[tuple[str, dict]]) -> str:
         '|-----|-------|------|------|--------|------|',
     ]
 
-    for filename, fm in sorted(refs, key=lambda x: int(x[1].get('id', 0))):
+    for filename, fm in sorted(
+        refs, key=lambda x: (ref_id_sort_key(x[1].get('id', '')), x[0])
+    ):
         ref_id = fm.get('id', '')
         title = fm.get('title', '')
         ref_type = fm.get('type', '')
         year = fm.get('year', '')
-        topics = ', '.join(fm.get('topics', []))
+        raw_topics = fm.get('topics', [])
+        topics = (
+            ', '.join(str(t) for t in raw_topics)
+            if isinstance(raw_topics, list)
+            else str(raw_topics)
+        )
         lines.append(
             f'| {ref_id} | {title} | {ref_type} | {year} | {topics} | [{filename}](./summary/{filename}) |'
         )
@@ -103,12 +150,16 @@ def build_master_index(refs: list[tuple[str, dict]]) -> str:
 
 def build_tag_index(refs: list[tuple[str, dict]]) -> str:
     """Generate _tags.md content (inverted index: tag → reference IDs)."""
-    tag_map: dict[str, list[int]] = defaultdict(list)
+    tag_map: dict[str, list[int | str]] = defaultdict(list)
 
     for _, fm in refs:
-        ref_id = int(fm.get('id', 0))
-        for tag in fm.get('tags', []):
-            tag_map[tag].append(ref_id)
+        ref_id = fm.get('id', '')
+        if ref_id == '':
+            continue
+        raw_tags = fm.get('tags', [])
+        tags = raw_tags if isinstance(raw_tags, list) else ([raw_tags] if raw_tags else [])
+        for tag in tags:
+            tag_map[str(tag)].append(ref_id)
 
     lines = [
         '# Tag Index',
@@ -118,13 +169,32 @@ def build_tag_index(refs: list[tuple[str, dict]]) -> str:
     ]
 
     for tag in sorted(tag_map.keys()):
-        ids = sorted(tag_map[tag])
+        ids = sorted(tag_map[tag], key=ref_id_sort_key)
         id_str = ', '.join(str(i) for i in ids)
         lines.append(f'## {tag}')
         lines.append(f'{id_str}')
         lines.append('')
 
     return '\n'.join(lines)
+
+
+def atomic_write_text(target_path: str, content: str) -> None:
+    """Write content to target_path atomically via a same-directory temp file."""
+    target_dir = os.path.dirname(os.path.abspath(target_path))
+    os.makedirs(target_dir, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(
+        prefix='.tmp-', dir=target_dir, text=True
+    )
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(content)
+        os.replace(tmp_path, target_path)
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def ensure_dirs():
@@ -137,22 +207,22 @@ def main():
     ensure_dirs()
 
     refs = collect_references()
+    master_index = build_master_index(refs)
+    tag_index = build_tag_index(refs)
 
-    # Write _index.md
+    # Write _index.md atomically after generation succeeds
     index_path = os.path.join(SEMANTICS_DIR, '_index.md')
-    with open(index_path, 'w') as f:
-        f.write(build_master_index(refs))
+    atomic_write_text(index_path, master_index)
     print(f'  _index.md: {len(refs)} references')
 
-    # Write _tags.md
+    # Write _tags.md atomically after generation succeeds
     tags_path = os.path.join(SEMANTICS_DIR, '_tags.md')
-    with open(tags_path, 'w') as f:
-        f.write(build_tag_index(refs))
+    atomic_write_text(tags_path, tag_index)
 
     tag_count = len(set(
-        tag
+        str(tag)
         for _, fm in refs
-        for tag in fm.get('tags', [])
+        for tag in (fm.get('tags', []) if isinstance(fm.get('tags', []), list) else [])
     ))
     print(f'  _tags.md: {tag_count} tags')
 
